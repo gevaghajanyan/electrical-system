@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { I18nProvider } from '@/components/I18nProvider'
+import { ThemeProvider } from '@/components/ThemeProvider'
 import { NavBar } from '@/components/NavBar'
 import './globals.css'
 
@@ -31,8 +32,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-zinc-50 dark:bg-zinc-950">
         <I18nProvider>
-          <NavBar />
-          <main className="flex flex-1 flex-col">{children}</main>
+          <ThemeProvider>
+            <NavBar />
+            <main className="flex flex-1 flex-col">{children}</main>
+          </ThemeProvider>
         </I18nProvider>
       </body>
     </html>
