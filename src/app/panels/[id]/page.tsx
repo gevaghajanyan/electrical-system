@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState, useRef, useEffect } from 'react'
+import { use, useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import { panelStore } from '@/lib/store/panelStore'
@@ -20,20 +20,64 @@ export default function PanelEditorPage({
 }) {
   const { id } = use(params)
   const { t } = useTranslation()
-  const { panels } = usePanelStore()
+  const { panels, selectedElementId } = usePanelStore()
   const panel = panels.find((p) => p.id === id) ?? null
 
   const [draggingTypeId, setDraggingTypeId] = useState<ElementTypeId | null>(null)
   const [view, setView] = useState<'canvas' | 'schematic'>('canvas')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Must be in an effect, never during render — mutating the store during render triggers an immediate
-  // re-render of all subscribers, creating a render loop.
   useEffect(() => {
     if (panelStore.getState().activePanelId !== id) {
       panelStore.setActivePanel(id)
     }
   }, [id])
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement).tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+    const isMod = e.metaKey || e.ctrlKey
+
+    // Undo
+    if (isMod && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault()
+      panelStore.undo()
+      return
+    }
+    // Redo
+    if (isMod && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+      e.preventDefault()
+      panelStore.redo()
+      return
+    }
+    // Copy
+    if (isMod && e.key === 'c' && selectedElementId) {
+      e.preventDefault()
+      panelStore.copyElement(selectedElementId)
+      return
+    }
+    // Paste
+    if (isMod && e.key === 'v') {
+      e.preventDefault()
+      const pasted = panelStore.pasteElement()
+      if (pasted) panelStore.selectElement(pasted.id)
+      return
+    }
+    // Duplicate (Cmd+D)
+    if (isMod && e.key === 'd' && selectedElementId) {
+      e.preventDefault()
+      panelStore.copyElement(selectedElementId)
+      const pasted = panelStore.pasteElement()
+      if (pasted) panelStore.selectElement(pasted.id)
+      return
+    }
+  }, [selectedElementId])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
 
   if (!panel) {
     return (
@@ -87,6 +131,45 @@ export default function PanelEditorPage({
         <span className="text-xs font-medium text-zinc-800 dark:text-zinc-200 truncate max-w-xs">
           {panel.name}
         </span>
+
+        {/* Undo/redo in breadcrumb */}
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            onClick={() => panelStore.undo()}
+            disabled={!panelStore.canUndo()}
+            title="Undo (⌘Z)"
+            className="flex h-6 w-6 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-30 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+          </button>
+          <button
+            onClick={() => panelStore.redo()}
+            disabled={!panelStore.canRedo()}
+            title="Redo (⌘⇧Z)"
+            className="flex h-6 w-6 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-30 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+            </svg>
+          </button>
+          {selectedElementId && (
+            <>
+              <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
+              <button
+                onClick={() => { panelStore.copyElement(selectedElementId); const p = panelStore.pasteElement(); if (p) panelStore.selectElement(p.id) }}
+                title="Duplicate (⌘D)"
+                className="flex h-6 items-center gap-1 rounded px-1.5 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Duplicate
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Toolbar */}

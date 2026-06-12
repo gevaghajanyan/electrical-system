@@ -11,6 +11,23 @@ import { validatePanel } from '@/lib/utils/validation'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { RailConfigurator } from './RailConfigurator'
+import { BomModal } from './BomModal'
+
+function computeLoadSummary(panel: Panel): { totalA: number; railLoads: { label: string; totalA: number }[] } {
+  const railLoads = panel.rails.map((rail) => {
+    const elements = panel.elements.filter((e) => e.railId === rail.id)
+    let totalA = 0
+    for (const el of elements) {
+      const p = el.properties
+      if (p.kind === 'mcb' || p.kind === 'rcbo' || p.kind === 'rcd' || p.kind === 'isolator') {
+        totalA += p.rating
+      }
+    }
+    return { label: rail.label, totalA }
+  })
+  const totalA = railLoads.reduce((s, r) => s + r.totalA, 0)
+  return { totalA, railLoads }
+}
 
 interface BoardToolbarProps {
   panel: Panel
@@ -21,10 +38,13 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
   const { zoom } = usePanelStore()
   const { t } = useTranslation()
   const [railConfigOpen, setRailConfigOpen] = useState(false)
+  const [bomOpen, setBomOpen] = useState(false)
 
   const errors = useMemo(() => validatePanel(panel), [panel])
   const errorCount = errors.filter((e) => e.severity === 'error').length
   const warnCount = errors.filter((e) => e.severity === 'warning').length
+
+  const { totalA } = useMemo(() => computeLoadSummary(panel), [panel])
 
   return (
     <>
@@ -58,11 +78,16 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
           </Button>
         </div>
 
-        {/* Center: panel name + validation */}
+        {/* Center: panel name + load + validation */}
         <div className="flex flex-1 items-center justify-center gap-2 min-w-0">
           <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate max-w-xs">
             {panel.name}
           </span>
+          {totalA > 0 && (
+            <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+              {totalA}A total
+            </span>
+          )}
           {errorCount > 0 && (
             <Badge variant="error">{t('toolbar.errors', { count: errorCount })}</Badge>
           )}
@@ -74,8 +99,17 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
           )}
         </div>
 
-        {/* Right: export / import */}
+        {/* Right: BOM + export / import */}
         <div className="flex items-center gap-1">
+          <Button size="sm" variant="ghost" onClick={() => setBomOpen(true)} title="Bill of Materials">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+            BOM
+          </Button>
+
+          <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
+
           <Button size="sm" variant="ghost" onClick={onImport} title="Import panel JSON">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -98,6 +132,7 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
       </header>
 
       <RailConfigurator open={railConfigOpen} onClose={() => setRailConfigOpen(false)} />
+      <BomModal panel={panel} open={bomOpen} onClose={() => setBomOpen(false)} />
     </>
   )
 }

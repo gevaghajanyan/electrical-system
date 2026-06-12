@@ -26,9 +26,7 @@ export function validateElement(element: PanelElement, panel: Panel): Validation
     })
   }
 
-  if (
-    hasSlotCollision(panel.elements, element.railId, element.slotStart, element.slotWidth, element.id)
-  ) {
+  if (hasSlotCollision(panel.elements, element.railId, element.slotStart, element.slotWidth, element.id)) {
     errors.push({
       elementId: element.id,
       message: `Element "${element.label || def.label}" overlaps another element`,
@@ -65,6 +63,48 @@ export function validateConnections(panel: Panel): ValidationError[] {
   return errors
 }
 
+function getProtectionRating(el: PanelElement): number | null {
+  const p = el.properties
+  if (p.kind === 'mcb' || p.kind === 'rcbo' || p.kind === 'rcd' || p.kind === 'isolator') {
+    return p.rating
+  }
+  return null
+}
+
+export function validateBreakerCoordination(panel: Panel): ValidationError[] {
+  const errors: ValidationError[] = []
+  const elementMap = new Map(panel.elements.map((e) => [e.id, e]))
+
+  for (const conn of panel.connections) {
+    const from = parsePortId(conn.fromPortId)
+    const to = parsePortId(conn.toPortId)
+    if (!from || !to) continue
+
+    // Determine upstream (bottom port) and downstream (top port)
+    const upstreamId = from.side === 'bottom' ? from.elementId : to.elementId
+    const downstreamId = from.side === 'bottom' ? to.elementId : from.elementId
+
+    const upstream = elementMap.get(upstreamId)
+    const downstream = elementMap.get(downstreamId)
+    if (!upstream || !downstream) continue
+
+    const upRating = getProtectionRating(upstream)
+    const downRating = getProtectionRating(downstream)
+
+    if (upRating !== null && downRating !== null && upRating < downRating) {
+      const upLabel = upstream.label || upstream.typeId
+      const downLabel = downstream.label || downstream.typeId
+      errors.push({
+        elementId: upstreamId,
+        message: `Coordination warning: upstream "${upLabel}" (${upRating}A) has lower rating than downstream "${downLabel}" (${downRating}A)`,
+        severity: 'warning',
+      })
+    }
+  }
+
+  return errors
+}
+
 export function validatePanel(panel: Panel): ValidationError[] {
   const errors: ValidationError[] = []
 
@@ -87,6 +127,7 @@ export function validatePanel(panel: Panel): ValidationError[] {
   }
 
   errors.push(...validateConnections(panel))
+  errors.push(...validateBreakerCoordination(panel))
 
   return errors
 }

@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react'
 import type { Panel, PanelElement } from '@/lib/types/panel'
 import { ELEMENT_DEFS_MAP } from '@/lib/constants/elementDefs'
 import { parsePortId, phaseColor, phasesForPoles } from '@/lib/utils/portUtils'
+import { panelStore } from '@/lib/store/panelStore'
+import { usePanelStore } from '@/lib/hooks/usePanelStore'
 
 const BOX_W = 92
 const BOX_H = 62
@@ -61,7 +63,6 @@ function buildLayout(panel: Panel): {
     upstream.get(inId)!.add(outId)
   }
 
-  // BFS depth assignment
   const depth = new Map<string, number>()
   const queue: Array<{ id: string; d: number }> = []
   for (const el of elements) {
@@ -81,13 +82,11 @@ function buildLayout(panel: Panel): {
       }
     }
   }
-  // Unvisited (cycles) → last row
   const maxD = depth.size > 0 ? Math.max(...depth.values()) : 0
   for (const el of elements) {
     if (!depth.has(el.id)) depth.set(el.id, maxD + 1)
   }
 
-  // Group by depth, sort within group by rail+slot
   const levels = new Map<number, PanelElement[]>()
   for (const el of elements) {
     const d = depth.get(el.id)!
@@ -131,7 +130,26 @@ interface SchematicViewProps {
 
 export function SchematicView({ panel }: SchematicViewProps) {
   const { nodes, svgWidth, svgHeight } = useMemo(() => buildLayout(panel), [panel])
+  const { selectedConnectionId } = usePanelStore()
   const [zoom, setZoom] = useState(1)
+  const [editingLabel, setEditingLabel] = useState<{ id: string; value: string } | null>(null)
+
+  const selectedConn = panel.connections.find((c) => c.id === selectedConnectionId) ?? null
+
+  function handleWireClick(connId: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    if (selectedConnectionId === connId) {
+      panelStore.selectConnection(null)
+    } else {
+      panelStore.selectConnection(connId)
+    }
+  }
+
+  function commitLabel() {
+    if (!editingLabel) return
+    panelStore.updateConnection(editingLabel.id, { label: editingLabel.value })
+    setEditingLabel(null)
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -139,6 +157,38 @@ export function SchematicView({ panel }: SchematicViewProps) {
         <span className="text-xs text-zinc-400">
           {nodes.size} element{nodes.size !== 1 ? 's' : ''} · {panel.connections.length} connection{panel.connections.length !== 1 ? 's' : ''}
         </span>
+
+        {selectedConn && (
+          <div className="flex items-center gap-1.5 ml-2">
+            <span className="text-xs text-zinc-400">Wire label:</span>
+            {editingLabel?.id === selectedConn.id ? (
+              <>
+                <input
+                  autoFocus
+                  className="h-5 rounded border border-zinc-300 px-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200"
+                  value={editingLabel.value}
+                  onChange={(e) => setEditingLabel({ id: selectedConn.id, value: e.target.value })}
+                  onBlur={commitLabel}
+                  onKeyDown={(e) => { if (e.key === 'Enter') commitLabel(); if (e.key === 'Escape') setEditingLabel(null) }}
+                />
+              </>
+            ) : (
+              <button
+                className="h-5 min-w-[48px] rounded border border-zinc-200 px-1.5 text-xs text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                onClick={() => setEditingLabel({ id: selectedConn.id, value: selectedConn.label })}
+              >
+                {selectedConn.label || 'click to label'}
+              </button>
+            )}
+            <button
+              className="h-5 rounded px-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+              onClick={() => panelStore.deleteConnection(selectedConn.id)}
+            >
+              Delete
+            </button>
+          </div>
+        )}
+
         <div className="ml-auto flex items-center gap-1">
           <button
             onClick={() => setZoom((z) => Math.max(0.25, +(z - 0.1).toFixed(2)))}
@@ -162,7 +212,10 @@ export function SchematicView({ panel }: SchematicViewProps) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto bg-white dark:bg-zinc-950">
+      <div
+        className="flex-1 min-h-0 overflow-auto bg-white dark:bg-zinc-950"
+        onClick={() => panelStore.selectConnection(null)}
+      >
         {nodes.size === 0 ? (
           <div className="flex h-full items-center justify-center">
             <p className="text-xs text-zinc-400">No connectable elements to display</p>
@@ -197,15 +250,43 @@ export function SchematicView({ panel }: SchematicViewProps) {
               const x2 = toNode.x + portXInBox(ti >= 0 ? ti : 0, toPhases.length || 1)
               const y2 = toNode.y - PORT_R
               const cy = (y1 + y2) / 2
+              const isSelected = selectedConnectionId === conn.id
+              const midX = (x1 + x2) / 2
+              const midY = (y1 + y2) / 2
+
               return (
-                <path
-                  key={conn.id}
-                  d={`M ${x1} ${y1} C ${x1} ${cy}, ${x2} ${cy}, ${x2} ${y2}`}
-                  stroke={phaseColor(phase)}
-                  strokeWidth={2}
-                  fill="none"
-                  strokeOpacity={0.9}
-                />
+                <g key={conn.id}>
+                  {/* Wider invisible hit area */}
+                  <path
+                    d={`M ${x1} ${y1} C ${x1} ${cy}, ${x2} ${cy}, ${x2} ${y2}`}
+                    stroke="transparent"
+                    strokeWidth={12}
+                    fill="none"
+                    style={{ cursor: 'pointer' }}
+                    onClick={(e) => handleWireClick(conn.id, e)}
+                  />
+                  <path
+                    d={`M ${x1} ${y1} C ${x1} ${cy}, ${x2} ${cy}, ${x2} ${y2}`}
+                    stroke={isSelected ? '#fbbf24' : phaseColor(phase)}
+                    strokeWidth={isSelected ? 3 : 2}
+                    fill="none"
+                    strokeOpacity={0.9}
+                    style={{ cursor: 'pointer', pointerEvents: 'none' }}
+                  />
+                  {conn.label && (
+                    <text
+                      x={midX}
+                      y={midY - 4}
+                      textAnchor="middle"
+                      fill={isSelected ? '#d97706' : '#6b7280'}
+                      fontSize={8}
+                      fontFamily="system-ui,sans-serif"
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {conn.label}
+                    </text>
+                  )}
+                </g>
               )
             })}
 
@@ -219,18 +300,7 @@ export function SchematicView({ panel }: SchematicViewProps) {
 
               return (
                 <g key={el.id}>
-                  {/* Box body */}
-                  <rect
-                    x={x}
-                    y={y}
-                    width={BOX_W}
-                    height={BOX_H}
-                    rx={5}
-                    fill={def.color}
-                    stroke="rgba(0,0,0,0.18)"
-                    strokeWidth={1}
-                  />
-                  {/* Header strip */}
+                  <rect x={x} y={y} width={BOX_W} height={BOX_H} rx={5} fill={def.color} stroke="rgba(0,0,0,0.18)" strokeWidth={1} />
                   <rect x={x} y={y} width={BOX_W} height={17} rx={5} fill="rgba(0,0,0,0.28)" />
                   <rect x={x} y={y + 12} width={BOX_W} height={5} fill="rgba(0,0,0,0.28)" />
                   <text
@@ -246,7 +316,6 @@ export function SchematicView({ panel }: SchematicViewProps) {
                     {def.shortLabel}
                   </text>
 
-                  {/* Label */}
                   <text
                     x={x + BOX_W / 2}
                     y={y + 32}
@@ -258,7 +327,6 @@ export function SchematicView({ panel }: SchematicViewProps) {
                     {label.length > 10 ? label.slice(0, 10) + '…' : label}
                   </text>
 
-                  {/* Sub label */}
                   {sub && (
                     <text
                       x={x + BOX_W / 2}
@@ -273,7 +341,10 @@ export function SchematicView({ panel }: SchematicViewProps) {
                     </text>
                   )}
 
-                  {/* Ports */}
+                  {el.notes && (
+                    <circle cx={x + BOX_W - 6} cy={y + 6} r={4} fill="#fbbf24" stroke="rgba(0,0,0,0.2)" strokeWidth={0.5} />
+                  )}
+
                   {phases.map((phase, i) => {
                     const px = x + portXInBox(i, phases.length)
                     return (

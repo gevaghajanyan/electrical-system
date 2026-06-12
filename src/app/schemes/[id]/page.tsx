@@ -1,0 +1,278 @@
+'use client'
+
+import { use, useState, useEffect } from 'react'
+import Link from 'next/link'
+import { schemeStore } from '@/lib/store/schemeStore'
+import { useSchemeStore } from '@/lib/hooks/useSchemeStore'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { SchemePalette } from '@/components/scheme/SchemePalette'
+import { SchemeCanvas } from '@/components/scheme/SchemeCanvas'
+
+interface PageProps {
+  params: Promise<{ id: string }>
+}
+
+export default function SchemeEditorPage({ params }: PageProps) {
+  const { id } = use(params)
+  const storeState = useSchemeStore()
+  const { schemes, selectedNodeId, selectedWireId } = storeState
+  const [zoom, setZoom] = useState(1)
+
+  useEffect(() => {
+    if (schemeStore.getState().activeSchemeId !== id) {
+      schemeStore.setActiveScheme(id)
+    }
+  }, [id])
+
+  const scheme = schemes.find((s) => s.id === id)
+
+  if (!scheme) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+        <div className="text-center">
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Scheme not found</p>
+          <Link
+            href="/schemes"
+            className="mt-3 inline-flex text-sm text-blue-600 hover:underline dark:text-blue-400"
+          >
+            Back to schemes
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  const selectedNode = selectedNodeId
+    ? scheme.nodes.find((n) => n.id === selectedNodeId) ?? null
+    : null
+  const selectedWire = selectedWireId
+    ? scheme.wires.find((w) => w.id === selectedWireId) ?? null
+    : null
+
+  function handleZoomIn() {
+    setZoom((z) => Math.min(4, parseFloat((z + 0.1).toFixed(2))))
+  }
+
+  function handleZoomOut() {
+    setZoom((z) => Math.max(0.2, parseFloat((z - 0.1).toFixed(2))))
+  }
+
+  function handleZoomReset() {
+    setZoom(1)
+  }
+
+  function handleExportJson() {
+    const json = schemeStore.exportJson(id)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${(scheme?.name ?? 'scheme').replace(/[^a-z0-9]/gi, '_')}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="flex h-screen flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950">
+      {/* Top bar */}
+      <div className="flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+        <Link
+          href="/schemes"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Schemes
+        </Link>
+
+        <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
+
+        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate max-w-xs">
+          {scheme.name}
+        </span>
+
+        <div className="flex-1" />
+
+        {/* Zoom controls */}
+        <div className="flex items-center gap-1">
+          <Button size="icon" variant="ghost" onClick={handleZoomOut} title="Zoom out">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+          </Button>
+          <button
+            onClick={handleZoomReset}
+            className="w-14 rounded-md px-1 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+          <Button size="icon" variant="ghost" onClick={handleZoomIn} title="Zoom in">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </Button>
+        </div>
+
+        <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
+
+        <Button size="sm" variant="outline" onClick={handleExportJson}>
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Export JSON
+        </Button>
+      </div>
+
+      {/* Body: palette | canvas | properties */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left sidebar — palette */}
+        <div className="w-48 shrink-0">
+          <SchemePalette />
+        </div>
+
+        {/* Canvas */}
+        <div className="flex-1 overflow-hidden">
+          <SchemeCanvas scheme={scheme} zoom={zoom} onZoomChange={setZoom} />
+        </div>
+
+        {/* Right sidebar — properties */}
+        <div className="w-52 shrink-0 overflow-y-auto border-l border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="border-b border-zinc-200 px-3 py-3 dark:border-zinc-700">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              Properties
+            </p>
+          </div>
+
+          <div className="p-3">
+            {selectedNode ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Type</p>
+                  <p className="text-xs text-zinc-700 dark:text-zinc-200">{selectedNode.type}</p>
+                </div>
+                <div>
+                  <label
+                    htmlFor="node-label"
+                    className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400"
+                  >
+                    Label
+                  </label>
+                  <Input
+                    id="node-label"
+                    value={selectedNode.label}
+                    onChange={(e) =>
+                      schemeStore.updateNode(selectedNode.id, { label: e.target.value })
+                    }
+                    className="text-xs"
+                  />
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Position</p>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-300">
+                    x: {selectedNode.x}, y: {selectedNode.y}
+                  </p>
+                </div>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => schemeStore.deleteNode(selectedNode.id)}
+                >
+                  Delete Component
+                </Button>
+              </div>
+            ) : selectedWire ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Wire</p>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-300 break-all">
+                    {selectedWire.fromNodeId.slice(0, 8)}…:{selectedWire.fromPortIndex}
+                    {' → '}
+                    {selectedWire.toNodeId.slice(0, 8)}…:{selectedWire.toPortIndex}
+                  </p>
+                </div>
+                <div>
+                  <label
+                    htmlFor="wire-label"
+                    className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400"
+                  >
+                    Label
+                  </label>
+                  <Input
+                    id="wire-label"
+                    value={selectedWire.label}
+                    onChange={(e) =>
+                      schemeStore.updateWire(selectedWire.id, { label: e.target.value })
+                    }
+                    className="text-xs"
+                  />
+                </div>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => schemeStore.deleteWire(selectedWire.id)}
+                >
+                  Delete Wire
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center py-8 text-center">
+                <svg
+                  className="h-8 w-8 text-zinc-300 dark:text-zinc-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"
+                  />
+                </svg>
+                <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
+                  Select a component to edit
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Scheme stats */}
+          <div className="border-t border-zinc-200 p-3 dark:border-zinc-700">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+              Scheme Info
+            </p>
+            <div className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <div className="flex justify-between">
+                <span>Components</span>
+                <span className="font-medium text-zinc-700 dark:text-zinc-200">{scheme.nodes.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Wires</span>
+                <span className="font-medium text-zinc-700 dark:text-zinc-200">{scheme.wires.length}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tips */}
+          <div className="border-t border-zinc-200 p-3 dark:border-zinc-700">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+              Tips
+            </p>
+            <ul className="space-y-1 text-xs text-zinc-400 dark:text-zinc-500">
+              <li>Click port dots to connect wires</li>
+              <li>Drag nodes to move them</li>
+              <li>Middle mouse to pan</li>
+              <li>Ctrl+wheel to zoom</li>
+              <li>Delete/Backspace to remove</li>
+              <li>Esc to cancel</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

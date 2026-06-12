@@ -1,6 +1,7 @@
 import type { Panel, PanelElement, Rail, Connection, ElementProperties } from '../types/panel'
 import { deserializePanel, serializePanel } from '../utils/importExport'
 import { removeConnectionsForElement, canConnect } from '../utils/connectionUtils'
+import { hasSlotCollision } from '../utils/slotUtils'
 
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
@@ -22,7 +23,7 @@ export interface PanelStoreState {
   activePanelId: string | null
   selectedElementId: string | null
   selectedConnectionId: string | null
-  connectingFrom: string | null  // portId currently being connected from (transient UI state)
+  connectingFrom: string | null
   zoom: number
   pan: { x: number; y: number }
   settings: AppSettings
@@ -98,12 +99,35 @@ const initialState: PanelStoreState = {
     pan: { x: 0, y: 0 },
     settings: DEFAULT_SETTINGS,
   }),
-  connectingFrom: null,  // always reset on load — transient state
+  connectingFrom: null,
 }
 
 let state = { ...initialState }
 const listeners = new Set<Listener>()
 
+// ─── Undo / Redo ─────────────────────────────────────────────────────────────
+type DataSnapshot = { panels: Panel[]; settings: AppSettings }
+
+let undoStack: DataSnapshot[] = []
+let redoStack: DataSnapshot[] = []
+
+function snapData(): DataSnapshot {
+  return {
+    panels: JSON.parse(JSON.stringify(state.panels)) as Panel[],
+    settings: { ...state.settings },
+  }
+}
+
+function pushUndo(): void {
+  undoStack.push(snapData())
+  if (undoStack.length > 50) undoStack.shift()
+  redoStack = []
+}
+
+// ─── Clipboard ───────────────────────────────────────────────────────────────
+let clipboard: PanelElement | null = null
+
+// ─── Internal helpers ────────────────────────────────────────────────────────
 function notify() {
   saveToStorage(state)
   listeners.forEach((l) => l())
@@ -128,13 +152,65 @@ function updateActivePanel(updater: (p: Panel) => Panel) {
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
-
 export const panelStore = {
   getState: () => state,
 
   subscribe(listener: Listener): () => void {
     listeners.add(listener)
     return () => listeners.delete(listener)
+  },
+
+  // ── Undo / Redo ──
+  canUndo(): boolean { return undoStack.length > 0 },
+  canRedo(): boolean { return redoStack.length > 0 },
+
+  undo() {
+    if (undoStack.length === 0) return
+    redoStack.push(snapData())
+    const prev = undoStack.pop()!
+    state = { ...state, panels: prev.panels, settings: prev.settings }
+    notify()
+  },
+
+  redo() {
+    if (redoStack.length === 0) return
+    undoStack.push(snapData())
+    const next = redoStack.pop()!
+    state = { ...state, panels: next.panels, settings: next.settings }
+    notify()
+  },
+
+  // ── Clipboard ──
+  hasClipboard(): boolean { return clipboard !== null },
+
+  copyElement(elementId: string) {
+    const panel = getActivePanel()
+    const el = panel?.elements.find((e) => e.id === elementId)
+    if (el) clipboard = JSON.parse(JSON.stringify(el)) as PanelElement
+  },
+
+  pasteElement(): PanelElement | null {
+    if (!clipboard) return null
+    const panel = getActivePanel()
+    if (!panel) return null
+
+    for (const rail of panel.rails) {
+      for (let slot = 0; slot <= rail.slotCount - clipboard.slotWidth; slot++) {
+        if (!hasSlotCollision(panel.elements, rail.id, slot, clipboard.slotWidth)) {
+          const newEl: PanelElement = {
+            ...JSON.parse(JSON.stringify(clipboard)) as PanelElement,
+            id: uid(),
+            railId: rail.id,
+            slotStart: slot,
+            label: clipboard.label ? `${clipboard.label} (copy)` : '',
+          }
+          pushUndo()
+          updateActivePanel((p) => ({ ...p, elements: [...p.elements, newEl] }))
+          return newEl
+        }
+      }
+    }
+    return null
   },
 
   // ── Settings ──
@@ -159,6 +235,7 @@ export const panelStore = {
       createdAt: now(),
       updatedAt: now(),
     }
+    pushUndo()
     setState((s) => ({ ...s, panels: [...s.panels, panel], activePanelId: id }))
     return panel
   },
@@ -166,6 +243,7 @@ export const panelStore = {
   importPanel(panel: Panel): Panel {
     const id = uid()
     const imported: Panel = { ...panel, id, createdAt: now(), updatedAt: now() }
+    pushUndo()
     setState((s) => ({ ...s, panels: [...s.panels, imported], activePanelId: id }))
     return imported
   },
@@ -177,11 +255,13 @@ export const panelStore = {
     const copy = deserializePanel(json)
     const newId = uid()
     const newPanel: Panel = { ...copy, id: newId, name: `${original.name} (copy)`, createdAt: now(), updatedAt: now() }
+    pushUndo()
     setState((s) => ({ ...s, panels: [...s.panels, newPanel] }))
     return newPanel
   },
 
   updatePanel(panelId: string, updates: Partial<Pick<Panel, 'name' | 'description' | 'location' | 'voltage' | 'frequency'>>) {
+    pushUndo()
     setState((s) => ({
       ...s,
       panels: s.panels.map((p) => (p.id === panelId ? { ...p, ...updates, updatedAt: now() } : p)),
@@ -189,6 +269,7 @@ export const panelStore = {
   },
 
   deletePanel(panelId: string) {
+    pushUndo()
     setState((s) => ({
       ...s,
       panels: s.panels.filter((p) => p.id !== panelId),
@@ -205,11 +286,13 @@ export const panelStore = {
   // ── Rail CRUD ──
   addRail(rail: Omit<Rail, 'id'>): Rail {
     const newRail: Rail = { ...rail, id: uid() }
+    pushUndo()
     updateActivePanel((p) => ({ ...p, rails: [...p.rails, newRail] }))
     return newRail
   },
 
   updateRail(railId: string, updates: Partial<Omit<Rail, 'id'>>) {
+    pushUndo()
     updateActivePanel((p) => ({
       ...p,
       rails: p.rails.map((r) => (r.id === railId ? { ...r, ...updates } : r)),
@@ -217,18 +300,17 @@ export const panelStore = {
   },
 
   deleteRail(railId: string) {
+    pushUndo()
     updateActivePanel((p) => ({
       ...p,
       rails: p.rails.filter((r) => r.id !== railId),
       elements: p.elements.filter((e) => e.railId !== railId),
     }))
-    setState((s) => ({
-      ...s,
-      selectedElementId: null,
-    }))
+    setState((s) => ({ ...s, selectedElementId: null }))
   },
 
   reorderRails(orderedIds: string[]) {
+    pushUndo()
     updateActivePanel((p) => ({
       ...p,
       rails: orderedIds.flatMap((id) => {
@@ -241,11 +323,13 @@ export const panelStore = {
   // ── Element CRUD ──
   addElement(element: Omit<PanelElement, 'id'>): PanelElement {
     const newElement: PanelElement = { ...element, id: uid() }
+    pushUndo()
     updateActivePanel((p) => ({ ...p, elements: [...p.elements, newElement] }))
     return newElement
   },
 
   updateElement(elementId: string, updates: Partial<Omit<PanelElement, 'id'>>) {
+    pushUndo()
     updateActivePanel((p) => ({
       ...p,
       elements: p.elements.map((e) => (e.id === elementId ? { ...e, ...updates } : e)),
@@ -253,6 +337,7 @@ export const panelStore = {
   },
 
   deleteElement(elementId: string) {
+    pushUndo()
     updateActivePanel((p) => ({
       ...p,
       elements: p.elements.filter((e) => e.id !== elementId),
@@ -265,6 +350,7 @@ export const panelStore = {
   },
 
   moveElement(elementId: string, newRailId: string, newSlotStart: number) {
+    pushUndo()
     updateActivePanel((p) => ({
       ...p,
       elements: p.elements.map((e) =>
@@ -276,11 +362,21 @@ export const panelStore = {
   // ── Connection CRUD ──
   addConnection(conn: Omit<Connection, 'id'>): Connection {
     const newConn: Connection = { ...conn, id: uid() }
+    pushUndo()
     updateActivePanel((p) => ({ ...p, connections: [...p.connections, newConn] }))
     return newConn
   },
 
+  updateConnection(connectionId: string, updates: Partial<Pick<Connection, 'label'>>) {
+    pushUndo()
+    updateActivePanel((p) => ({
+      ...p,
+      connections: p.connections.map((c) => (c.id === connectionId ? { ...c, ...updates } : c)),
+    }))
+  },
+
   deleteConnection(connectionId: string) {
+    pushUndo()
     updateActivePanel((p) => ({
       ...p,
       connections: p.connections.filter((c) => c.id !== connectionId),
@@ -311,6 +407,7 @@ export const panelStore = {
         toPortId: portId,
         label: '',
       }
+      pushUndo()
       updateActivePanel((p) => ({ ...p, connections: [...p.connections, newConn] }))
     }
     setState((s) => ({ ...s, connectingFrom: null }))

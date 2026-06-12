@@ -355,6 +355,18 @@ export function ElementShape({
         />
       )}
 
+      {/* Notes indicator dot */}
+      {element.notes && (
+        <Circle
+          x={w - 5} y={5}
+          radius={4}
+          fill="#fbbf24"
+          stroke="#fff"
+          strokeWidth={1}
+          listening={false}
+        />
+      )}
+
       {/* Selection ring */}
       {isSelected && (
         <Rect
