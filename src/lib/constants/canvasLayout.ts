@@ -1,0 +1,9 @@
+export const SLOT_WIDTH_PX = 36
+export const ELEMENT_HEIGHT_PX = 72
+export const RAIL_ROW_HEIGHT_PX = 112
+export const RAIL_PADDING_Y = 20
+export const PANEL_PADDING_PX = 32
+export const SLOT_GAP = 2
+export const ELEMENT_TOP_Y = (RAIL_ROW_HEIGHT_PX - ELEMENT_HEIGHT_PX) / 2
+export const PORT_RADIUS = 4
+export const PORT_HIT_RADIUS = 9
