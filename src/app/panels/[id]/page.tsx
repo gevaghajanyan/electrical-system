@@ -2,6 +2,7 @@
 
 import { use, useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import { useTranslation } from 'react-i18next'
 import { panelStore } from '@/lib/store/panelStore'
 import { usePanelStore } from '@/lib/hooks/usePanelStore'
 import { readJsonFile } from '@/lib/utils/importExport'
@@ -18,6 +19,7 @@ export default function PanelEditorPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
+  const { t } = useTranslation()
   const { panels } = usePanelStore()
   const panel = panels.find((p) => p.id === id) ?? null
 
@@ -37,12 +39,12 @@ export default function PanelEditorPage({
     return (
       <div className="flex h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950">
         <div className="text-center">
-          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Panel not found</p>
+          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">{t('editor.notFound')}</p>
           <Link
             href="/panels"
             className="mt-3 inline-block text-sm text-blue-600 hover:underline dark:text-blue-400"
           >
-            Back to panels
+            {t('editor.backToPanels')}
           </Link>
         </div>
       </div>
@@ -64,7 +66,7 @@ export default function PanelEditorPage({
       const imported = await readJsonFile(file)
       panelStore.importPanel(imported)
     } catch (err) {
-      alert(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      alert(t('panels.importError', { error: err instanceof Error ? err.message : 'Unknown error' }))
     }
     e.target.value = ''
   }
@@ -77,7 +79,7 @@ export default function PanelEditorPage({
           href="/panels"
           className="text-xs text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
         >
-          Panels
+          {t('nav.panels')}
         </Link>
         <svg className="h-3 w-3 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -114,7 +116,7 @@ export default function PanelEditorPage({
                     : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
                 }`}
               >
-                {v === 'canvas' ? 'Layout' : 'Schematic'}
+                {v === 'canvas' ? t('editor.layout') : t('editor.schematic')}
               </button>
             ))}
           </div>

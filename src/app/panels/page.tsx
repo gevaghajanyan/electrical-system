@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import Link from 'next/link'
+import { useTranslation } from 'react-i18next'
 import { panelStore } from '@/lib/store/panelStore'
 import { usePanelStore } from '@/lib/hooks/usePanelStore'
 import { readJsonFile } from '@/lib/utils/importExport'
@@ -21,9 +22,11 @@ function formatDate(iso: string): string {
 }
 
 function PanelCard({ panel }: { panel: Panel }) {
+  const { t } = useTranslation()
+
   function handleDelete(e: React.MouseEvent) {
     e.preventDefault()
-    if (confirm(`Delete panel "${panel.name}"? This cannot be undone.`)) {
+    if (confirm(t('panels.card.confirmDelete', { name: panel.name }))) {
       panelStore.deletePanel(panel.id)
     }
   }
@@ -59,19 +62,19 @@ function PanelCard({ panel }: { panel: Panel }) {
           </p>
         )}
         <div className="mt-3 flex items-center gap-3 text-xs text-zinc-400 dark:text-zinc-500">
-          <span>{panel.rails.length} rail{panel.rails.length !== 1 ? 's' : ''}</span>
+          <span>{t('panels.card.rails', { count: panel.rails.length })}</span>
           <span>·</span>
-          <span>{panel.elements.length} element{panel.elements.length !== 1 ? 's' : ''}</span>
+          <span>{t('panels.card.elements', { count: panel.elements.length })}</span>
           <span>·</span>
           <span>{formatDate(panel.updatedAt)}</span>
         </div>
       </Link>
       <div className="flex items-center gap-1 border-t border-zinc-100 px-5 py-2.5 dark:border-zinc-700">
         <Button size="sm" variant="ghost" onClick={handleDuplicate} className="text-xs">
-          Duplicate
+          {t('panels.card.duplicate')}
         </Button>
         <Button size="sm" variant="ghost" onClick={handleDelete} className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 ml-auto">
-          Delete
+          {t('panels.card.delete')}
         </Button>
       </div>
     </div>
@@ -81,6 +84,7 @@ function PanelCard({ panel }: { panel: Panel }) {
 function NewPanelModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [name, setName] = useState('')
   const { settings } = usePanelStore()
+  const { t } = useTranslation()
 
   function handleCreate() {
     if (!name.trim()) return
@@ -95,31 +99,31 @@ function NewPanelModal({ open, onClose }: { open: boolean; onClose: () => void }
     <Modal
       open={open}
       onClose={onClose}
-      title="New Panel"
+      title={t('panels.modal.title')}
       maxWidth="sm"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="ghost" onClick={onClose}>{t('panels.modal.cancel')}</Button>
           <Button variant="primary" onClick={handleCreate} disabled={!name.trim()}>
-            Create Panel
+            {t('panels.modal.create')}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <div>
-          <Label htmlFor="new-panel-name" required>Panel Name</Label>
+          <Label htmlFor="new-panel-name" required>{t('panels.modal.nameLabel')}</Label>
           <Input
             id="new-panel-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Main Distribution Board"
+            placeholder={t('panels.modal.namePlaceholder')}
             autoFocus
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
           />
         </div>
         <p className="text-xs text-zinc-500">
-          A default rail ({settings.defaultSlotCount} slots) will be added automatically.
+          {t('panels.modal.defaultRailHint', { count: settings.defaultSlotCount })}
         </p>
       </div>
     </Modal>
@@ -128,6 +132,7 @@ function NewPanelModal({ open, onClose }: { open: boolean; onClose: () => void }
 
 export default function PanelsPage() {
   const { panels } = usePanelStore()
+  const { t } = useTranslation()
   const [newModalOpen, setNewModalOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -138,7 +143,7 @@ export default function PanelsPage() {
       const panel = await readJsonFile(file)
       panelStore.importPanel(panel)
     } catch (err) {
-      alert(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      alert(t('panels.importError', { error: err instanceof Error ? err.message : 'Unknown error' }))
     }
     e.target.value = ''
   }
@@ -148,9 +153,9 @@ export default function PanelsPage() {
       <div className="flex-1 mx-auto w-full max-w-5xl px-4 py-8">
         <div className="mb-8 flex items-end justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Panels</h1>
+            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{t('panels.title')}</h1>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Design and manage your electrical distribution boards
+              {t('panels.subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -158,13 +163,13 @@ export default function PanelsPage() {
               <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
-              Import
+              {t('panels.import')}
             </Button>
             <Button variant="primary" onClick={() => setNewModalOpen(true)}>
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              New Panel
+              {t('panels.newPanel')}
             </Button>
           </div>
         </div>
@@ -174,10 +179,10 @@ export default function PanelsPage() {
             <svg className="h-12 w-12 text-zinc-300 dark:text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18" />
             </svg>
-            <p className="mt-3 text-sm font-medium text-zinc-500 dark:text-zinc-400">No panels yet</p>
-            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">Create a new panel or import an existing one</p>
+            <p className="mt-3 text-sm font-medium text-zinc-500 dark:text-zinc-400">{t('panels.empty.title')}</p>
+            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">{t('panels.empty.subtitle')}</p>
             <Button variant="primary" className="mt-6" onClick={() => setNewModalOpen(true)}>
-              Create your first panel
+              {t('panels.empty.cta')}
             </Button>
           </div>
         ) : (

@@ -1,0 +1,255 @@
+{
+  "nav": {
+    "brand": "Panel Designer",
+    "panels": "Panels",
+    "calculators": "Calculators",
+    "settings": "Settings",
+    "about": "About"
+  },
+  "home": {
+    "title": "Electrical Panel Designer",
+    "description": "Design DIN rail distribution boards with drag-and-drop simplicity. Export to PDF or JSON. All data stays in your browser.",
+    "openPanels": "Open Panels",
+    "calculators": "Calculators",
+    "learnMore": "Learn more →",
+    "features": {
+      "library": {
+        "title": "Full element library",
+        "desc": "MCBs, RCDs, RCBOs, isolators, busbars & more"
+      },
+      "dinRail": {
+        "title": "DIN rail layout",
+        "desc": "Drag elements onto configurable DIN rails"
+      },
+      "export": {
+        "title": "PDF & JSON export",
+        "desc": "Print to PDF or share as JSON files"
+      }
+    }
+  },
+  "panels": {
+    "title": "Panels",
+    "subtitle": "Design and manage your electrical distribution boards",
+    "import": "Import",
+    "newPanel": "New Panel",
+    "empty": {
+      "title": "No panels yet",
+      "subtitle": "Create a new panel or import an existing one",
+      "cta": "Create your first panel"
+    },
+    "card": {
+      "rails_one": "{{count}} rail",
+      "rails_other": "{{count}} rails",
+      "elements_one": "{{count}} element",
+      "elements_other": "{{count}} elements",
+      "duplicate": "Duplicate",
+      "delete": "Delete",
+      "confirmDelete": "Delete panel \"{{name}}\"? This cannot be undone."
+    },
+    "modal": {
+      "title": "New Panel",
+      "nameLabel": "Panel Name",
+      "namePlaceholder": "e.g. Main Distribution Board",
+      "defaultRailHint": "A default rail ({{count}} slots) will be added automatically.",
+      "cancel": "Cancel",
+      "create": "Create Panel"
+    },
+    "importError": "Import failed: {{error}}"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Configure defaults and preferences",
+    "newPanelDefaults": {
+      "title": "New Panel Defaults",
+      "defaultVoltage": "Default Voltage",
+      "voltage230": "230V (single-phase)",
+      "voltage400": "400V (three-phase)",
+      "defaultFrequency": "Default Frequency",
+      "freq50": "50 Hz",
+      "freq60": "60 Hz",
+      "slotCount": "Default Rail Slot Count",
+      "slotCountHint": "Number of slots on the first rail for new panels"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "theme": "Theme",
+      "themeSystem": "System default",
+      "themeLight": "Light",
+      "themeDark": "Dark"
+    },
+    "language": {
+      "title": "Language",
+      "label": "Interface Language"
+    },
+    "data": {
+      "title": "Data",
+      "description": "All panel data is stored locally in your browser. Nothing is sent to a server.",
+      "clearAll": "Clear all data",
+      "confirmClear": "This will delete ALL panels and reset all settings. Are you sure?"
+    },
+    "about": {
+      "title": "About",
+      "line1": "Electrical System Panel Designer",
+      "line2": "Built for BS 7671 / IEC 60364 distribution board layout",
+      "line3": "All data stored client-side via localStorage"
+    }
+  },
+  "about": {
+    "title": "Electrical Panel Designer",
+    "subtitle": "A browser-based tool for designing DIN rail electrical distribution boards",
+    "features": {
+      "title": "Features",
+      "items": [
+        "Visual DIN rail panel layout editor",
+        "Drag-and-drop element placement from a component palette",
+        "MCBs, RCDs, RCBOs, isolators, surge protection, and more",
+        "Multi-rail panels with configurable slot counts",
+        "Element property editing (rating, curve, label)",
+        "Design validation with error and warning reporting",
+        "Export to PDF (print) and JSON",
+        "Import panels from JSON files",
+        "Electrical calculators (cable sizing, voltage drop, fault current)",
+        "All data stored locally — no account required"
+      ]
+    },
+    "standards": {
+      "title": "Standards",
+      "description": "Designed for use with BS 7671 (IET Wiring Regulations) and IEC 60364. Slot widths follow the 18mm DIN rail module convention."
+    },
+    "shortcuts": {
+      "title": "Keyboard Shortcuts",
+      "deleteKey": "Delete / ⌫",
+      "deleteDesc": "Delete selected element (focus canvas first)",
+      "scroll": "Scroll",
+      "scrollDesc": "Pan canvas",
+      "cmdScroll": "⌘ Scroll",
+      "cmdScrollDesc": "Zoom canvas",
+      "middleDrag": "Middle drag",
+      "middleDragDesc": "Pan canvas"
+    },
+    "technology": {
+      "title": "Technology",
+      "description": "Built with Next.js 16, React 19, TypeScript, and Tailwind CSS v4. Canvas rendering uses the HTML5 Canvas API. State persisted via localStorage."
+    },
+    "getStarted": "Get started",
+    "calculators": "Calculators"
+  },
+  "calculators": {
+    "title": "Calculators",
+    "subtitle": "Electrical engineering tools for BS 7671 / IEC 60364 compliance",
+    "cableSize": {
+      "title": "Cable Size Calculator",
+      "designCurrent": "Design Current (A)",
+      "deratingFactor": "Derating Factor",
+      "deratingHint": "e.g. 0.8 for conduit grouping",
+      "effectiveCurrent": "Effective current after derating",
+      "recommended": "Recommended cable:",
+      "capacity": "(capacity: {{cap}}A)"
+    },
+    "voltageDrop": {
+      "title": "Voltage Drop Calculator",
+      "current": "Current (A)",
+      "length": "One-way Length (m)",
+      "csa": "Cable CSA (mm²)",
+      "supplyVoltage": "Supply Voltage (V)",
+      "material": "Conductor Material",
+      "copper": "Copper",
+      "aluminium": "Aluminium",
+      "resistance": "Resistance",
+      "drop": "Voltage Drop",
+      "percentDrop": "% Drop",
+      "acceptable": "≤ 3% — Acceptable",
+      "exceeds": "> 3% — Exceeds limit"
+    },
+    "faultCurrent": {
+      "title": "Fault Current (Zs / If)",
+      "nominalVoltage": "Nominal Voltage (V)",
+      "voltage230": "230V (single-phase)",
+      "voltage400": "400V (three-phase)",
+      "impedance": "Earth Fault Loop Impedance Zs (Ω)",
+      "formula": "Prospective fault current If = Uo / Zs"
+    },
+    "power": {
+      "title": "Load / Current Calculator",
+      "activePower": "Active Power (W)",
+      "powerFactor": "Power Factor",
+      "supply": "Supply",
+      "singlePhase": "Single-phase",
+      "threePhase": "Three-phase",
+      "voltage": "Voltage (V)",
+      "apparentPower": "Apparent Power",
+      "lineCurrent": "Line Current"
+    }
+  },
+  "toolbar": {
+    "rails": "Rails",
+    "fit": "Fit",
+    "import": "Import",
+    "json": "JSON",
+    "pdf": "PDF",
+    "valid": "Valid",
+    "errors_one": "{{count}} error",
+    "errors_other": "{{count}} errors",
+    "warnings_one": "{{count}} warning",
+    "warnings_other": "{{count}} warnings"
+  },
+  "properties": {
+    "empty": "Select an element to edit properties",
+    "label": "Label",
+    "labelPlaceholder": "Circuit label…",
+    "notes": "Notes",
+    "notesPlaceholder": "Optional notes…",
+    "rating": "Rating (A)",
+    "tripCurve": "Trip Curve",
+    "curve": "Curve {{c}}",
+    "breakingCapacity": "Breaking Capacity (kA)",
+    "sensitivity": "Sensitivity (mA)",
+    "rcdType": "RCD Type",
+    "type": "Type",
+    "typeValue": "Type {{t}}",
+    "minVoltage": "Min Voltage (V)",
+    "maxVoltage": "Max Voltage (V)",
+    "tripDelay": "Trip Delay (s)",
+    "slotInfo": "Slot {{start}} – {{end}} · {{width}}W",
+    "delete": "Delete",
+    "apply": "Apply",
+    "confirmDelete": "Delete this element?"
+  },
+  "rails": {
+    "configureTitle": "Configure Rails",
+    "close": "Close",
+    "addRail": "Add Rail",
+    "editRail": "Edit Rail",
+    "slots": "{{count}} slots",
+    "defaultLabel": "Rail {{n}}",
+    "noRails": "No rails yet. Add one to get started.",
+    "cancel": "Cancel",
+    "saveChanges": "Save Changes",
+    "labelField": "Label",
+    "labelPlaceholder": "e.g. Main Rail, Lighting Circuit",
+    "slotCount": "Slot Count",
+    "slotCountHint": "Standard rails: 12, 18, 24, 36, 48 slots",
+    "confirmDelete": "Delete this rail? All elements on it will be removed."
+  },
+  "palette": {
+    "title": "Elements",
+    "search": "Search…",
+    "hint": "Click to place · Drag to position",
+    "categories": {
+      "protection": "Protection",
+      "switching": "Switching",
+      "distribution": "Distribution",
+      "accessory": "Accessory"
+    }
+  },
+  "editor": {
+    "notFound": "Panel not found",
+    "backToPanels": "Back to panels",
+    "layout": "Layout",
+    "schematic": "Schematic"
+  },
+  "lang": {
+    "en": "English",
+    "ru": "Russian"
+  }
+}

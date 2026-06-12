@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Rail } from '@/lib/types/panel'
 import { panelStore } from '@/lib/store/panelStore'
 import { useActivePanel } from '@/lib/hooks/usePanelStore'
@@ -21,14 +22,15 @@ interface RailRowProps {
 }
 
 function RailRow({ rail, index, onEdit, onDelete, onMoveUp, onMoveDown, isFirst, isLast }: RailRowProps) {
+  const { t } = useTranslation()
   return (
     <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 dark:border-zinc-700 dark:bg-zinc-800">
       <span className="w-5 text-center text-xs text-zinc-400">{index + 1}</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
-          {rail.label || `Rail ${index + 1}`}
+          {rail.label || t('rails.defaultLabel', { n: index + 1 })}
         </p>
-        <p className="text-xs text-zinc-500">{rail.slotCount} slots</p>
+        <p className="text-xs text-zinc-500">{t('rails.slots', { count: rail.slotCount })}</p>
       </div>
       <div className="flex items-center gap-1">
         <Button size="icon" variant="ghost" onClick={() => onMoveUp(rail.id)} disabled={isFirst} title="Move up">
@@ -63,6 +65,7 @@ interface EditRailModalProps {
 }
 
 function EditRailModal({ rail, open, onClose }: EditRailModalProps) {
+  const { t } = useTranslation()
   const [label, setLabel] = useState(rail?.label ?? '')
   const [slotCount, setSlotCount] = useState(rail?.slotCount ?? 24)
 
@@ -86,29 +89,29 @@ function EditRailModal({ rail, open, onClose }: EditRailModalProps) {
     <Modal
       open={open}
       onClose={onClose}
-      title={isNew ? 'Add Rail' : 'Edit Rail'}
+      title={isNew ? t('rails.addRail') : t('rails.editRail')}
       maxWidth="sm"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="ghost" onClick={onClose}>{t('rails.cancel')}</Button>
           <Button variant="primary" onClick={handleSubmit}>
-            {isNew ? 'Add Rail' : 'Save Changes'}
+            {isNew ? t('rails.addRail') : t('rails.saveChanges')}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <div>
-          <Label htmlFor="rail-label">Label</Label>
+          <Label htmlFor="rail-label">{t('rails.labelField')}</Label>
           <Input
             id="rail-label"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="e.g. Main Rail, Lighting Circuit"
+            placeholder={t('rails.labelPlaceholder')}
           />
         </div>
         <div>
-          <Label htmlFor="rail-slots">Slot Count</Label>
+          <Label htmlFor="rail-slots">{t('rails.slotCount')}</Label>
           <Input
             id="rail-slots"
             type="number"
@@ -118,7 +121,7 @@ function EditRailModal({ rail, open, onClose }: EditRailModalProps) {
             onChange={(e) => setSlotCount(Math.max(1, Math.min(120, Number(e.target.value))))}
           />
           <p className="mt-1 text-xs text-zinc-500">
-            Standard rails: 12, 18, 24, 36, 48 slots
+            {t('rails.slotCountHint')}
           </p>
         </div>
       </div>
@@ -132,6 +135,7 @@ interface RailConfiguratorProps {
 }
 
 export function RailConfigurator({ open, onClose }: RailConfiguratorProps) {
+  const { t } = useTranslation()
   const panel = useActivePanel()
   const [editingRail, setEditingRail] = useState<Rail | null>(null)
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -150,7 +154,7 @@ export function RailConfigurator({ open, onClose }: RailConfiguratorProps) {
   }
 
   function handleDelete(railId: string) {
-    if (confirm('Delete this rail? All elements on it will be removed.')) {
+    if (confirm(t('rails.confirmDelete'))) {
       panelStore.deleteRail(railId)
     }
   }
@@ -176,16 +180,16 @@ export function RailConfigurator({ open, onClose }: RailConfiguratorProps) {
       <Modal
         open={open}
         onClose={onClose}
-        title="Configure Rails"
+        title={t('rails.configureTitle')}
         maxWidth="md"
         footer={
           <>
-            <Button variant="ghost" onClick={onClose}>Close</Button>
+            <Button variant="ghost" onClick={onClose}>{t('rails.close')}</Button>
             <Button variant="primary" onClick={handleAdd}>
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Add Rail
+              {t('rails.addRail')}
             </Button>
           </>
         }
@@ -193,7 +197,7 @@ export function RailConfigurator({ open, onClose }: RailConfiguratorProps) {
         <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
           {activePanel.rails.length === 0 && (
             <p className="py-8 text-center text-sm text-zinc-500">
-              No rails yet. Add one to get started.
+              {t('rails.noRails')}
             </p>
           )}
           {activePanel.rails.map((rail, index) => (

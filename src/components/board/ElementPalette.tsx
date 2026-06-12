@@ -1,19 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ElementCategory, ElementTypeId } from '@/lib/types/panel'
 import type { ElementDef } from '@/lib/constants/elementDefs'
 import { ELEMENT_DEFS } from '@/lib/constants/elementDefs'
 import { useActivePanel } from '@/lib/hooks/usePanelStore'
 import { panelStore } from '@/lib/store/panelStore'
 import { hasSlotCollision } from '@/lib/utils/slotUtils'
-
-const CATEGORY_LABELS: Record<ElementCategory, string> = {
-  protection: 'Protection',
-  switching: 'Switching',
-  distribution: 'Distribution',
-  accessory: 'Accessory',
-}
 
 const CATEGORY_ORDER: ElementCategory[] = ['protection', 'switching', 'distribution', 'accessory']
 
@@ -80,6 +74,7 @@ interface ElementPaletteProps {
 }
 
 export function ElementPalette({ onDragStart, className = '' }: ElementPaletteProps) {
+  const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [collapsed, setCollapsed] = useState<Set<ElementCategory>>(new Set())
   const activePanel = useActivePanel()
@@ -135,10 +130,10 @@ export function ElementPalette({ onDragStart, className = '' }: ElementPalettePr
     <div className={['flex flex-col h-full overflow-hidden', className].join(' ')}>
       {/* Header + search */}
       <div className="shrink-0 border-b border-zinc-200 dark:border-zinc-700 px-3 pt-3 pb-2 space-y-2">
-        <h2 className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Elements</h2>
+        <h2 className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{t('palette.title')}</h2>
         <input
           type="text"
-          placeholder="Search…"
+          placeholder={t('palette.search')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
@@ -169,7 +164,7 @@ export function ElementPalette({ onDragStart, className = '' }: ElementPalettePr
                   />
                 </svg>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                  {CATEGORY_LABELS[cat]}
+                  {t(`palette.categories.${cat}`)}
                 </span>
                 <span className="ml-auto text-[9px] text-zinc-300 dark:text-zinc-600 tabular-nums">
                   {defs.length}
@@ -196,7 +191,7 @@ export function ElementPalette({ onDragStart, className = '' }: ElementPalettePr
       {/* Hint */}
       <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-700 px-3 py-1.5">
         <p className="text-[10px] text-zinc-400 dark:text-zinc-500 text-center">
-          Click to place · Drag to position
+          {t('palette.hint')}
         </p>
       </div>
     </div>

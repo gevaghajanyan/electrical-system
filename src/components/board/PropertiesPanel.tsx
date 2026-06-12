@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { PanelElement, CurrentRating, TripCurve, RcdSensitivity, RcdType } from '@/lib/types/panel'
 import type { McbProperties, RcdProperties, RcboProperties, IsolatorProperties, VoltageRelayProperties } from '@/lib/types/panel'
 import { ELEMENT_DEFS_MAP } from '@/lib/constants/elementDefs'
@@ -19,22 +20,23 @@ const SENSITIVITIES: RcdSensitivity[] = [10, 30, 100, 300]
 const RCD_TYPES: RcdType[] = ['AC', 'A', 'F', 'B']
 
 function McbForm({ props, onChange }: { props: McbProperties; onChange: (p: McbProperties) => void }) {
+  const { t } = useTranslation()
   return (
     <>
       <div>
-        <Label htmlFor="mcb-rating">Rating (A)</Label>
+        <Label htmlFor="mcb-rating">{t('properties.rating')}</Label>
         <Select id="mcb-rating" value={props.rating} onChange={(e) => onChange({ ...props, rating: Number(e.target.value) as CurrentRating })}>
           {RATINGS.map((r) => <option key={r} value={r}>{r}A</option>)}
         </Select>
       </div>
       <div>
-        <Label htmlFor="mcb-curve">Trip Curve</Label>
+        <Label htmlFor="mcb-curve">{t('properties.tripCurve')}</Label>
         <Select id="mcb-curve" value={props.curve} onChange={(e) => onChange({ ...props, curve: e.target.value as TripCurve })}>
-          {CURVES.map((c) => <option key={c} value={c}>Curve {c}</option>)}
+          {CURVES.map((c) => <option key={c} value={c}>{t('properties.curve', { c })}</option>)}
         </Select>
       </div>
       <div>
-        <Label htmlFor="mcb-ka">Breaking Capacity (kA)</Label>
+        <Label htmlFor="mcb-ka">{t('properties.breakingCapacity')}</Label>
         <Select id="mcb-ka" value={props.breakingCapacity} onChange={(e) => onChange({ ...props, breakingCapacity: Number(e.target.value) })}>
           {[3, 6, 10, 15].map((v) => <option key={v} value={v}>{v} kA</option>)}
         </Select>
@@ -44,24 +46,25 @@ function McbForm({ props, onChange }: { props: McbProperties; onChange: (p: McbP
 }
 
 function RcdForm({ props, onChange }: { props: RcdProperties; onChange: (p: RcdProperties) => void }) {
+  const { t } = useTranslation()
   return (
     <>
       <div>
-        <Label htmlFor="rcd-rating">Rating (A)</Label>
+        <Label htmlFor="rcd-rating">{t('properties.rating')}</Label>
         <Select id="rcd-rating" value={props.rating} onChange={(e) => onChange({ ...props, rating: Number(e.target.value) as CurrentRating })}>
           {RATINGS.map((r) => <option key={r} value={r}>{r}A</option>)}
         </Select>
       </div>
       <div>
-        <Label htmlFor="rcd-sens">Sensitivity (mA)</Label>
+        <Label htmlFor="rcd-sens">{t('properties.sensitivity')}</Label>
         <Select id="rcd-sens" value={props.sensitivity} onChange={(e) => onChange({ ...props, sensitivity: Number(e.target.value) as RcdSensitivity })}>
           {SENSITIVITIES.map((s) => <option key={s} value={s}>{s}mA</option>)}
         </Select>
       </div>
       <div>
-        <Label htmlFor="rcd-type">Type</Label>
+        <Label htmlFor="rcd-type">{t('properties.type')}</Label>
         <Select id="rcd-type" value={props.type} onChange={(e) => onChange({ ...props, type: e.target.value as RcdType })}>
-          {RCD_TYPES.map((t) => <option key={t} value={t}>Type {t}</option>)}
+          {RCD_TYPES.map((t2) => <option key={t2} value={t2}>{t('properties.typeValue', { t: t2 })}</option>)}
         </Select>
       </div>
     </>
@@ -69,30 +72,31 @@ function RcdForm({ props, onChange }: { props: RcdProperties; onChange: (p: RcdP
 }
 
 function RcboForm({ props, onChange }: { props: RcboProperties; onChange: (p: RcboProperties) => void }) {
+  const { t } = useTranslation()
   return (
     <>
       <div>
-        <Label htmlFor="rcbo-rating">Rating (A)</Label>
+        <Label htmlFor="rcbo-rating">{t('properties.rating')}</Label>
         <Select id="rcbo-rating" value={props.rating} onChange={(e) => onChange({ ...props, rating: Number(e.target.value) as CurrentRating })}>
           {RATINGS.map((r) => <option key={r} value={r}>{r}A</option>)}
         </Select>
       </div>
       <div>
-        <Label htmlFor="rcbo-curve">Trip Curve</Label>
+        <Label htmlFor="rcbo-curve">{t('properties.tripCurve')}</Label>
         <Select id="rcbo-curve" value={props.curve} onChange={(e) => onChange({ ...props, curve: e.target.value as TripCurve })}>
-          {CURVES.map((c) => <option key={c} value={c}>Curve {c}</option>)}
+          {CURVES.map((c) => <option key={c} value={c}>{t('properties.curve', { c })}</option>)}
         </Select>
       </div>
       <div>
-        <Label htmlFor="rcbo-sens">Sensitivity (mA)</Label>
+        <Label htmlFor="rcbo-sens">{t('properties.sensitivity')}</Label>
         <Select id="rcbo-sens" value={props.sensitivity} onChange={(e) => onChange({ ...props, sensitivity: Number(e.target.value) as RcdSensitivity })}>
           {SENSITIVITIES.map((s) => <option key={s} value={s}>{s}mA</option>)}
         </Select>
       </div>
       <div>
-        <Label htmlFor="rcbo-type">RCD Type</Label>
+        <Label htmlFor="rcbo-type">{t('properties.rcdType')}</Label>
         <Select id="rcbo-type" value={props.type} onChange={(e) => onChange({ ...props, type: e.target.value as RcdType })}>
-          {RCD_TYPES.map((t) => <option key={t} value={t}>Type {t}</option>)}
+          {RCD_TYPES.map((t2) => <option key={t2} value={t2}>{t('properties.typeValue', { t: t2 })}</option>)}
         </Select>
       </div>
     </>
@@ -100,9 +104,10 @@ function RcboForm({ props, onChange }: { props: RcboProperties; onChange: (p: Rc
 }
 
 function IsolatorForm({ props, onChange }: { props: IsolatorProperties; onChange: (p: IsolatorProperties) => void }) {
+  const { t } = useTranslation()
   return (
     <div>
-      <Label htmlFor="iso-rating">Rating (A)</Label>
+      <Label htmlFor="iso-rating">{t('properties.rating')}</Label>
       <Select id="iso-rating" value={props.rating} onChange={(e) => onChange({ ...props, rating: Number(e.target.value) as CurrentRating })}>
         {RATINGS.map((r) => <option key={r} value={r}>{r}A</option>)}
       </Select>
@@ -111,10 +116,11 @@ function IsolatorForm({ props, onChange }: { props: IsolatorProperties; onChange
 }
 
 function VoltageRelayForm({ props, onChange }: { props: VoltageRelayProperties; onChange: (p: VoltageRelayProperties) => void }) {
+  const { t } = useTranslation()
   return (
     <>
       <div>
-        <Label htmlFor="vr-min">Min Voltage (V)</Label>
+        <Label htmlFor="vr-min">{t('properties.minVoltage')}</Label>
         <Input
           id="vr-min"
           type="number"
@@ -124,7 +130,7 @@ function VoltageRelayForm({ props, onChange }: { props: VoltageRelayProperties; 
         />
       </div>
       <div>
-        <Label htmlFor="vr-max">Max Voltage (V)</Label>
+        <Label htmlFor="vr-max">{t('properties.maxVoltage')}</Label>
         <Input
           id="vr-max"
           type="number"
@@ -134,7 +140,7 @@ function VoltageRelayForm({ props, onChange }: { props: VoltageRelayProperties; 
         />
       </div>
       <div>
-        <Label htmlFor="vr-delay">Trip Delay (s)</Label>
+        <Label htmlFor="vr-delay">{t('properties.tripDelay')}</Label>
         <Input
           id="vr-delay"
           type="number"
@@ -148,6 +154,7 @@ function VoltageRelayForm({ props, onChange }: { props: VoltageRelayProperties; 
 }
 
 function PropertiesForm({ element }: { element: PanelElement }) {
+  const { t } = useTranslation()
   const def = ELEMENT_DEFS_MAP.get(element.typeId)
   const [label, setLabel] = useState(element.label)
   const [notes, setNotes] = useState(element.notes)
@@ -167,7 +174,7 @@ function PropertiesForm({ element }: { element: PanelElement }) {
   }
 
   function handleDelete() {
-    if (confirm('Delete this element?')) {
+    if (confirm(t('properties.confirmDelete'))) {
       panelStore.deleteElement(element.id)
     }
   }
@@ -210,13 +217,13 @@ function PropertiesForm({ element }: { element: PanelElement }) {
         )}
 
         <div>
-          <Label htmlFor="el-label">Label</Label>
-          <Input id="el-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Circuit label…" />
+          <Label htmlFor="el-label">{t('properties.label')}</Label>
+          <Input id="el-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t('properties.labelPlaceholder')} />
         </div>
 
         <div>
-          <Label htmlFor="el-notes">Notes</Label>
-          <Textarea id="el-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Optional notes…" />
+          <Label htmlFor="el-notes">{t('properties.notes')}</Label>
+          <Textarea id="el-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder={t('properties.notesPlaceholder')} />
         </div>
 
         {isMcb && (
@@ -237,18 +244,38 @@ function PropertiesForm({ element }: { element: PanelElement }) {
 
         <div className="pt-1">
           <p className="text-xs text-zinc-400">
-            Slot {element.slotStart + 1} – {element.slotStart + element.slotWidth} · {element.slotWidth}W
+            {t('properties.slotInfo', {
+              start: element.slotStart + 1,
+              end: element.slotStart + element.slotWidth,
+              width: element.slotWidth,
+            })}
           </p>
         </div>
       </div>
 
       <div className="border-t border-zinc-200 px-4 py-3 dark:border-zinc-700 flex gap-2">
         <Button variant="danger" size="sm" onClick={handleDelete} className="shrink-0">
-          Delete
+          {t('properties.delete')}
         </Button>
         <Button variant="primary" size="sm" onClick={save} className="flex-1">
-          Apply
+          {t('properties.apply')}
         </Button>
+      </div>
+    </div>
+  )
+}
+
+function EmptyState({ className = '' }: { className?: string }) {
+  const { t } = useTranslation()
+  return (
+    <div className={['flex h-full items-center justify-center p-6', className].join(' ')}>
+      <div className="text-center">
+        <svg className="mx-auto h-8 w-8 text-zinc-300 dark:text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
+          {t('properties.empty')}
+        </p>
       </div>
     </div>
   )
@@ -263,16 +290,7 @@ export function PropertiesPanel({ className = '' }: PropertiesPanelProps) {
 
   if (!element) {
     return (
-      <div className={['flex h-full items-center justify-center p-6', className].join(' ')}>
-        <div className="text-center">
-          <svg className="mx-auto h-8 w-8 text-zinc-300 dark:text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
-            Select an element to edit properties
-          </p>
-        </div>
-      </div>
+      <EmptyState className={className} />
     )
   }
 
