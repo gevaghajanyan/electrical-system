@@ -165,6 +165,17 @@ export const schemeStore = {
     return node
   },
 
+  linkNodeToPanel(nodeId: string, panelElementId: string | null): void {
+    updateActiveScheme((sc) => ({
+      ...sc,
+      nodes: sc.nodes.map((n) =>
+        n.id === nodeId
+          ? { ...n, linkedPanelElementId: panelElementId ?? undefined }
+          : n
+      ),
+    }))
+  },
+
   updateNode(nodeId: string, updates: Partial<Pick<SchemeNode, 'x' | 'y' | 'label' | 'rotation'>>) {
     updateActiveScheme((sc) => ({
       ...sc,

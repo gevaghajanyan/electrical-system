@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Stage, Layer, Group, Rect } from 'react-konva'
+import { Stage, Layer, Group, Rect, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import type { Panel, ElementTypeId } from '@/lib/types/panel'
@@ -48,12 +48,13 @@ interface PanelCanvasProps {
   className?: string
   selectedElementIds: Set<string>
   onMultiSelectChange: (ids: Set<string>) => void
+  annotationMode: boolean
 }
 
-export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', selectedElementIds, onMultiSelectChange }: PanelCanvasProps) {
+export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', selectedElementIds, onMultiSelectChange, annotationMode }: PanelCanvasProps) {
   const stageRef = useRef<Konva.Stage | null>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
-  const { zoom, pan, selectedElementId, selectedConnectionId, connectingFrom } = usePanelStore()
+  const { zoom, pan, selectedElementId, selectedConnectionId, selectedAnnotationId, connectingFrom } = usePanelStore()
   const [containerSize, setContainerSize] = useState({ w: 800, h: 600 })
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [canvasMousePos, setCanvasMousePos] = useState({ x: 0, y: 0 })
@@ -126,7 +127,7 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
   )
 
   function handleStageMouseDown() {
-    if (connectingFrom) return
+    if (connectingFrom || annotationMode) return
     const stage = stageRef.current
     if (!stage) return
     const pos = stage.getPointerPosition()
@@ -137,6 +138,19 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
     }
     rbRef.current = r
     setRubberBand(r)
+  }
+
+  function handleStageDblClick(e: KonvaEventObject<MouseEvent>) {
+    if (!annotationMode) return
+    const stage = stageRef.current
+    if (!stage) return
+    const pos = stage.getPointerPosition()
+    if (!pos) return
+    const x = (pos.x - pan.x) / zoom
+    const y = (pos.y - pan.y) / zoom
+    const text = window.prompt('Annotation text:')
+    if (text === null || text.trim() === '') return
+    panelStore.addAnnotation(x, y, text.trim())
   }
 
   function handleStageMouseUp() {
@@ -240,12 +254,15 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
           panelStore.deleteElement(selectedElementId)
         } else if (selectedConnectionId) {
           panelStore.deleteConnection(selectedConnectionId)
+        } else if (selectedAnnotationId) {
+          panelStore.deleteAnnotation(selectedAnnotationId)
         }
       }
     }
     if (e.key === 'Escape') {
       panelStore.cancelConnecting()
       panelStore.selectElement(null)
+      panelStore.selectAnnotation(null)
       onMultiSelectChange(new Set())
     }
   }
@@ -274,7 +291,7 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         onDragLeave={() => setDropHighlight(null)}
-        style={{ cursor: connectingFrom ? 'crosshair' : draggingTypeId ? 'copy' : 'default' }}
+        style={{ cursor: connectingFrom ? 'crosshair' : draggingTypeId ? 'copy' : annotationMode ? 'text' : 'default' }}
       >
         {/* Zoom controls */}
         <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-700 rounded-lg px-1.5 py-1 shadow-sm backdrop-blur-sm">
@@ -305,6 +322,13 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
           </div>
         )}
 
+        {/* Annotation mode banner */}
+        {annotationMode && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-yellow-300 text-yellow-900 text-xs font-semibold px-3 py-1 rounded-full shadow pointer-events-none">
+            Double-click anywhere to add a note — click a note to select/edit
+          </div>
+        )}
+
         <Stage
           ref={stageRef}
           width={containerSize.w}
@@ -314,6 +338,7 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
           onMouseDown={handleStageMouseDown}
           onMouseMove={handleStageMouseMove}
           onMouseUp={handleStageMouseUp}
+          onDblClick={handleStageDblClick}
         >
           <Layer>
             <Group x={pan.x} y={pan.y} scaleX={zoom} scaleY={zoom}>
@@ -374,6 +399,57 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
                   }}
                 />
               ))}
+
+              {/* Annotations */}
+              {panel.annotations.map((ann) => {
+                const isSelected = ann.id === selectedAnnotationId
+                const PAD = 6
+                const fontSize = 12
+                return (
+                  <Group
+                    key={ann.id}
+                    x={ann.x}
+                    y={ann.y}
+                    draggable
+                    onMouseDown={(e) => { e.cancelBubble = true }}
+                    onClick={(e) => {
+                      e.cancelBubble = true
+                      panelStore.selectAnnotation(ann.id)
+                    }}
+                    onDblClick={(e) => {
+                      e.cancelBubble = true
+                      const next = window.prompt('Edit annotation:', ann.text)
+                      if (next !== null && next.trim() !== '') {
+                        panelStore.updateAnnotation(ann.id, { text: next.trim() })
+                      }
+                    }}
+                    onDragEnd={(e) => {
+                      panelStore.updateAnnotation(ann.id, { x: e.target.x(), y: e.target.y() })
+                    }}
+                  >
+                    <Rect
+                      x={0} y={0}
+                      width={Math.max(80, ann.text.length * 7.5) + PAD * 2}
+                      height={fontSize + PAD * 2}
+                      fill="#fef9c3"
+                      stroke={isSelected ? '#3b82f6' : '#d97706'}
+                      strokeWidth={isSelected ? 1.5 / zoom : 1 / zoom}
+                      cornerRadius={3}
+                      shadowColor="rgba(0,0,0,0.15)"
+                      shadowBlur={4}
+                      shadowOffsetY={2}
+                    />
+                    <Text
+                      x={PAD} y={PAD}
+                      text={ann.text}
+                      fontSize={fontSize}
+                      fontFamily="sans-serif"
+                      fill="#92400e"
+                      listening={false}
+                    />
+                  </Group>
+                )
+              })}
 
               {/* Rubber-band selection rect */}
               {rubberBand && (() => {

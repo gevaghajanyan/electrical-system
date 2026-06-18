@@ -13,6 +13,7 @@ import { PanelCanvas } from '@/components/board/PanelCanvas'
 import { BoardToolbar } from '@/components/board/BoardToolbar'
 import { SchematicView } from '@/components/board/SchematicView'
 import { SaveStatusIndicator } from '@/components/SaveStatusIndicator'
+import { ShortcutModal } from '@/components/ShortcutModal'
 
 export default function PanelEditorPage({
   params,
@@ -27,6 +28,8 @@ export default function PanelEditorPage({
   const [draggingTypeId, setDraggingTypeId] = useState<ElementTypeId | null>(null)
   const [view, setView] = useState<'canvas' | 'schematic'>('canvas')
   const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set())
+  const [shortcutModalOpen, setShortcutModalOpen] = useState(false)
+  const [annotationMode, setAnnotationMode] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -79,6 +82,11 @@ export default function PanelEditorPage({
       e.preventDefault()
       multiSelectedIds.forEach(id => panelStore.deleteElement(id))
       setMultiSelectedIds(new Set())
+      return
+    }
+    // Show shortcuts
+    if (e.key === '?') {
+      setShortcutModalOpen(true)
       return
     }
   }, [selectedElementId, multiSelectedIds])
@@ -144,6 +152,26 @@ export default function PanelEditorPage({
         {/* Save indicator + undo/redo */}
         <div className="ml-auto flex items-center gap-2">
           <SaveStatusIndicator />
+          <button
+            onClick={() => setShortcutModalOpen(true)}
+            title="Keyboard shortcuts (?)"
+            className="flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 text-xs font-medium"
+          >
+            ?
+          </button>
+          <button
+            onClick={() => setAnnotationMode((m) => !m)}
+            title="Toggle annotation mode"
+            className={`flex h-6 w-6 items-center justify-center rounded text-xs transition-colors ${
+              annotationMode
+                ? 'bg-yellow-200 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100'
+                : 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-300'
+            }`}
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+          </button>
           <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
           <button
             onClick={() => panelStore.undo()}
@@ -223,6 +251,7 @@ export default function PanelEditorPage({
               className="flex-1 min-h-0"
               selectedElementIds={multiSelectedIds}
               onMultiSelectChange={setMultiSelectedIds}
+              annotationMode={annotationMode}
             />
           ) : (
             <SchematicView panel={panel} />
@@ -269,6 +298,7 @@ export default function PanelEditorPage({
         className="hidden"
         onChange={handleImportFile}
       />
+      <ShortcutModal open={shortcutModalOpen} onClose={() => setShortcutModalOpen(false)} />
     </div>
   )
 }

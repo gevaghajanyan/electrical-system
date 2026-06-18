@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PanelElement, CurrentRating, TripCurve, RcdSensitivity, RcdType } from '@/lib/types/panel'
 import type { McbProperties, RcdProperties, RcboProperties, IsolatorProperties, VoltageRelayProperties } from '@/lib/types/panel'
 import { ELEMENT_DEFS_MAP } from '@/lib/constants/elementDefs'
 import { panelStore } from '@/lib/store/panelStore'
 import { useActivePanel, useSelectedElement } from '@/lib/hooks/usePanelStore'
+import { schemeStore } from '@/lib/store/schemeStore'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
@@ -159,6 +160,14 @@ function PropertiesForm({ element }: { element: PanelElement }) {
   const [label, setLabel] = useState(element.label)
   const [notes, setNotes] = useState(element.notes)
   const [elementProps, setElementProps] = useState(element.properties)
+  const schemes = useSyncExternalStore(
+    schemeStore.subscribe,
+    () => schemeStore.getState().schemes,
+    () => schemeStore.getState().schemes
+  )
+  const linkedSchemes = schemes.filter((s) =>
+    s.nodes.some((n) => n.linkedPanelElementId === element.id)
+  )
 
   useEffect(() => {
     setLabel(element.label)
@@ -240,6 +249,28 @@ function PropertiesForm({ element }: { element: PanelElement }) {
         )}
         {isVr && (
           <VoltageRelayForm props={elementProps} onChange={(p) => setElementProps(p)} />
+        )}
+
+        {linkedSchemes.length > 0 && (
+          <div className="rounded-md bg-blue-50 px-2.5 py-2 dark:bg-blue-900/20">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-blue-500 dark:text-blue-400">
+              Referenced in schemes
+            </p>
+            <div className="space-y-0.5">
+              {linkedSchemes.map((s) => (
+                <a
+                  key={s.id}
+                  href={`/schemes/${s.id}`}
+                  className="flex items-center gap-1 text-xs text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  <svg className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  {s.name}
+                </a>
+              ))}
+            </div>
+          </div>
         )}
 
         <div className="pt-1">

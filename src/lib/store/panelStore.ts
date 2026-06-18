@@ -1,4 +1,4 @@
-import type { Panel, PanelElement, Rail, Connection, ElementProperties } from '../types/panel'
+import type { Panel, PanelElement, Rail, Connection, ElementProperties, Annotation } from '../types/panel'
 import { deserializePanel, serializePanel } from '../utils/importExport'
 import { removeConnectionsForElement, canConnect } from '../utils/connectionUtils'
 import { hasSlotCollision } from '../utils/slotUtils'
@@ -23,6 +23,7 @@ export interface PanelStoreState {
   activePanelId: string | null
   selectedElementId: string | null
   selectedConnectionId: string | null
+  selectedAnnotationId: string | null
   connectingFrom: string | null
   zoom: number
   pan: { x: number; y: number }
@@ -54,8 +55,10 @@ function migrateElementKind(typeId: string, props: Record<string, unknown>): Ele
 function migrateState(s: PanelStoreState): PanelStoreState {
   return {
     ...s,
+    selectedAnnotationId: s.selectedAnnotationId ?? null,
     panels: s.panels.map((p) => ({
       ...p,
+      annotations: p.annotations ?? [],
       elements: p.elements.map((e) => ({
         ...e,
         properties: migrateElementKind(e.typeId, e.properties as Record<string, unknown>),
@@ -108,11 +111,13 @@ const initialState: PanelStoreState = {
     activePanelId: null,
     selectedElementId: null,
     selectedConnectionId: null,
+    selectedAnnotationId: null,
     zoom: 1,
     pan: { x: 0, y: 0 },
     settings: DEFAULT_SETTINGS,
   }),
   connectingFrom: null,
+  selectedAnnotationId: null,
 }
 
 let state = { ...initialState }
@@ -252,6 +257,7 @@ export const panelStore = {
       rails: [{ id: defaultRailId, label: 'Rail 1', slotCount: state.settings.defaultSlotCount }],
       elements: [],
       connections: [],
+      annotations: [],
       createdAt: now(),
       updatedAt: now(),
     }
@@ -298,7 +304,7 @@ export const panelStore = {
   },
 
   setActivePanel(panelId: string | null) {
-    setState((s) => ({ ...s, activePanelId: panelId, selectedElementId: null, selectedConnectionId: null, connectingFrom: null }))
+    setState((s) => ({ ...s, activePanelId: panelId, selectedElementId: null, selectedConnectionId: null, selectedAnnotationId: null, connectingFrom: null }))
   },
 
   getActivePanel,
@@ -441,11 +447,15 @@ export const panelStore = {
 
   // ── UI State ──
   selectElement(id: string | null) {
-    setState((s) => ({ ...s, selectedElementId: id, selectedConnectionId: null, connectingFrom: null }))
+    setState((s) => ({ ...s, selectedElementId: id, selectedConnectionId: null, selectedAnnotationId: null, connectingFrom: null }))
   },
 
   selectConnection(id: string | null) {
-    setState((s) => ({ ...s, selectedConnectionId: id, selectedElementId: null, connectingFrom: null }))
+    setState((s) => ({ ...s, selectedConnectionId: id, selectedElementId: null, selectedAnnotationId: null, connectingFrom: null }))
+  },
+
+  selectAnnotation(id: string | null) {
+    setState((s) => ({ ...s, selectedAnnotationId: id, selectedElementId: null, selectedConnectionId: null, connectingFrom: null }))
   },
 
   setZoom(zoom: number) {
@@ -458,5 +468,93 @@ export const panelStore = {
 
   resetView() {
     setState((s) => ({ ...s, zoom: 1, pan: { x: 0, y: 0 } }))
+  },
+
+  packAllRails(): void {
+    const panel = getActivePanel()
+    if (!panel) return
+    pushUndo()
+    updateActivePanel((p) => {
+      const elements = p.elements.map((e) => ({ ...e }))
+      for (const rail of p.rails) {
+        const onRail = elements
+          .filter((e) => e.railId === rail.id)
+          .sort((a, b) => a.slotStart - b.slotStart)
+        let cursor = 0
+        for (const el of onRail) {
+          const target = elements.find((e) => e.id === el.id)!
+          target.slotStart = cursor
+          cursor += el.slotWidth
+        }
+      }
+      return { ...p, elements }
+    })
+  },
+
+  autoNumberLabels(prefix: string = 'C'): void {
+    const panel = getActivePanel()
+    if (!panel) return
+    pushUndo()
+    updateActivePanel((p) => {
+      const sorted = [...p.elements].sort((a, b) => {
+        const ri = p.rails.findIndex((r) => r.id === a.railId) - p.rails.findIndex((r) => r.id === b.railId)
+        if (ri !== 0) return ri
+        return a.slotStart - b.slotStart
+      })
+      let counter = 1
+      const labelMap = new Map<string, string>()
+      for (const el of sorted) {
+        labelMap.set(el.id, `${prefix}${counter}`)
+        counter++
+      }
+      return {
+        ...p,
+        elements: p.elements.map((e) => ({ ...e, label: labelMap.get(e.id) ?? e.label })),
+      }
+    })
+  },
+
+  // ── Annotation CRUD ──
+  addAnnotation(x: number, y: number, text: string): Annotation {
+    const annotation: Annotation = { id: uid(), x, y, text }
+    pushUndo()
+    updateActivePanel((p) => ({ ...p, annotations: [...p.annotations, annotation] }))
+    setState((s) => ({ ...s, selectedAnnotationId: annotation.id }))
+    return annotation
+  },
+
+  updateAnnotation(id: string, updates: Partial<Omit<Annotation, 'id'>>) {
+    pushUndo()
+    updateActivePanel((p) => ({
+      ...p,
+      annotations: p.annotations.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+    }))
+  },
+
+  deleteAnnotation(id: string) {
+    pushUndo()
+    updateActivePanel((p) => ({
+      ...p,
+      annotations: p.annotations.filter((a) => a.id !== id),
+    }))
+    setState((s) => ({
+      ...s,
+      selectedAnnotationId: s.selectedAnnotationId === id ? null : s.selectedAnnotationId,
+    }))
+  },
+
+  restoreSnapshot(snapshot: Panel): void {
+    pushUndo()
+    const panel = state.panels.find((p) => p.id === state.activePanelId)
+    if (!panel) return
+    const idx = state.panels.indexOf(panel)
+    state.panels[idx] = {
+      ...snapshot,
+      id: panel.id,
+      name: panel.name,
+      createdAt: panel.createdAt,
+      updatedAt: new Date().toISOString(),
+    }
+    notify()
   },
 }

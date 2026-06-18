@@ -120,6 +120,13 @@ export interface Rail {
   slotCount: number
 }
 
+export interface Annotation {
+  id: string
+  x: number
+  y: number
+  text: string
+}
+
 export interface Panel {
   id: string
   name: string
@@ -130,6 +137,7 @@ export interface Panel {
   rails: Rail[]
   elements: PanelElement[]
   connections: Connection[]
+  annotations: Annotation[]
   createdAt: string
   updatedAt: string
 }

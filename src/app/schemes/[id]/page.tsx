@@ -4,6 +4,7 @@ import { use, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { schemeStore } from '@/lib/store/schemeStore'
 import { useSchemeStore } from '@/lib/hooks/useSchemeStore'
+import { usePanelStore } from '@/lib/hooks/usePanelStore'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { SchemePalette } from '@/components/scheme/SchemePalette'
@@ -17,6 +18,7 @@ export default function SchemeEditorPage({ params }: PageProps) {
   const { id } = use(params)
   const storeState = useSchemeStore()
   const { schemes, selectedNodeId, selectedWireId } = storeState
+  const { panels } = usePanelStore()
   const [zoom, setZoom] = useState(1)
 
   useEffect(() => {
@@ -196,6 +198,26 @@ export default function SchemeEditorPage({ params }: PageProps) {
                   <p className="text-xs text-zinc-600 dark:text-zinc-300">
                     {selectedNode.rotation ?? 0}°
                   </p>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Linked Panel Element</p>
+                  <select
+                    value={selectedNode.linkedPanelElementId ?? ''}
+                    onChange={(e) => schemeStore.linkNodeToPanel(selectedNode.id, e.target.value || null)}
+                    className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-700 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                  >
+                    <option value="">— Not linked —</option>
+                    {panels.flatMap((panel) =>
+                      panel.elements.map((el) => (
+                        <option key={el.id} value={el.id}>
+                          {panel.name} / {el.label || el.typeId}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  {selectedNode.linkedPanelElementId && (
+                    <p className="mt-1 text-[10px] text-blue-500">Linked to panel element</p>
+                  )}
                 </div>
                 <Button
                   variant="danger"

@@ -40,6 +40,7 @@ export function NavBar() {
       <div className="flex items-center gap-1">
         <NavLink href="/panels">{t('nav.panels')}</NavLink>
         <NavLink href="/schemes">Schemes</NavLink>
+        <NavLink href="/tools">Tools</NavLink>
         <NavLink href="/calculators">{t('nav.calculators')}</NavLink>
         <NavLink href="/settings">{t('nav.settings')}</NavLink>
         <NavLink href="/about">{t('nav.about')}</NavLink>

@@ -117,5 +117,6 @@ export function createPanelFromTemplate(
     rails,
     elements,
     connections: [],
+    annotations: [],
   }
 }

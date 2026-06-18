@@ -34,6 +34,7 @@ export interface SchemeNode {
   y: number
   label: string
   rotation: 0 | 90 | 180 | 270
+  linkedPanelElementId?: string
 }
 
 export interface SchemeWire {

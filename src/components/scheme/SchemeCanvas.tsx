@@ -509,6 +509,14 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange }: Props) {
           />
           {/* Symbol */}
           <NodeSymbol type={node.type} />
+
+          {/* Panel link badge */}
+          {node.linkedPanelElementId && (
+            <g transform={`translate(${def.width - 9}, 9)`} style={{ pointerEvents: 'none' }}>
+              <circle r={7} fill="#3b82f6" stroke="white" strokeWidth={1.5} />
+              <text x={0} y={3.5} textAnchor="middle" fontSize={9} fontWeight="bold" fill="white" fontFamily="sans-serif">P</text>
+            </g>
+          )}
         </g>
 
         {/* Label — always upright, below the node's bounding box centre */}

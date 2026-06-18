@@ -11,6 +11,7 @@ const SERVER_SNAPSHOT: PanelStoreState = {
   activePanelId: null,
   selectedElementId: null,
   selectedConnectionId: null,
+  selectedAnnotationId: null,
   connectingFrom: null,
   zoom: 1,
   pan: { x: 0, y: 0 },
