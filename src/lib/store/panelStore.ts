@@ -126,8 +126,11 @@ const listeners = new Set<Listener>()
 // ─── Undo / Redo ─────────────────────────────────────────────────────────────
 type DataSnapshot = { panels: Panel[]; settings: AppSettings }
 
-let undoStack: DataSnapshot[] = []
-let redoStack: DataSnapshot[] = []
+interface HistoryEntry { snapshot: DataSnapshot; label: string; ts: number }
+
+let undoStack: HistoryEntry[] = []
+let redoStack: HistoryEntry[] = []
+let historyCache: Array<{ label: string; ts: number; index: number }> | null = null
 
 function snapData(): DataSnapshot {
   return {
@@ -136,10 +139,11 @@ function snapData(): DataSnapshot {
   }
 }
 
-function pushUndo(): void {
-  undoStack.push(snapData())
+function pushUndo(label = 'Change'): void {
+  undoStack.push({ snapshot: snapData(), label, ts: Date.now() })
   if (undoStack.length > 50) undoStack.shift()
   redoStack = []
+  historyCache = null
 }
 
 // ─── Clipboard ───────────────────────────────────────────────────────────────
@@ -184,17 +188,38 @@ export const panelStore = {
 
   undo() {
     if (undoStack.length === 0) return
-    redoStack.push(snapData())
+    redoStack.push({ snapshot: snapData(), label: 'Current', ts: Date.now() })
     const prev = undoStack.pop()!
-    state = { ...state, panels: prev.panels, settings: prev.settings }
+    state = { ...state, panels: prev.snapshot.panels, settings: prev.snapshot.settings }
+    historyCache = null
     notify()
   },
 
   redo() {
     if (redoStack.length === 0) return
-    undoStack.push(snapData())
+    undoStack.push({ snapshot: snapData(), label: 'Current', ts: Date.now() })
     const next = redoStack.pop()!
-    state = { ...state, panels: next.panels, settings: next.settings }
+    state = { ...state, panels: next.snapshot.panels, settings: next.snapshot.settings }
+    historyCache = null
+    notify()
+  },
+
+  getHistory(): Array<{ label: string; ts: number; index: number }> {
+    if (!historyCache) {
+      historyCache = undoStack.map((e, i) => ({ label: e.label, ts: e.ts, index: i }))
+    }
+    return historyCache
+  },
+
+  undoToIndex(targetIndex: number): void {
+    const steps = undoStack.length - 1 - targetIndex
+    for (let i = 0; i < steps; i++) {
+      if (undoStack.length === 0) break
+      redoStack.push({ snapshot: snapData(), label: 'Current', ts: Date.now() })
+      const prev = undoStack.pop()!
+      state = { ...state, panels: prev.snapshot.panels, settings: prev.snapshot.settings }
+    }
+    historyCache = null
     notify()
   },
 
@@ -312,13 +337,13 @@ export const panelStore = {
   // ── Rail CRUD ──
   addRail(rail: Omit<Rail, 'id'>): Rail {
     const newRail: Rail = { ...rail, id: uid() }
-    pushUndo()
+    pushUndo('Add rail')
     updateActivePanel((p) => ({ ...p, rails: [...p.rails, newRail] }))
     return newRail
   },
 
   updateRail(railId: string, updates: Partial<Omit<Rail, 'id'>>) {
-    pushUndo()
+    pushUndo('Edit rail')
     updateActivePanel((p) => ({
       ...p,
       rails: p.rails.map((r) => (r.id === railId ? { ...r, ...updates } : r)),
@@ -326,7 +351,7 @@ export const panelStore = {
   },
 
   deleteRail(railId: string) {
-    pushUndo()
+    pushUndo('Delete rail')
     updateActivePanel((p) => ({
       ...p,
       rails: p.rails.filter((r) => r.id !== railId),
@@ -336,7 +361,7 @@ export const panelStore = {
   },
 
   reorderRails(orderedIds: string[]) {
-    pushUndo()
+    pushUndo('Reorder rails')
     updateActivePanel((p) => ({
       ...p,
       rails: orderedIds.flatMap((id) => {
@@ -349,13 +374,13 @@ export const panelStore = {
   // ── Element CRUD ──
   addElement(element: Omit<PanelElement, 'id'>): PanelElement {
     const newElement: PanelElement = { ...element, id: uid() }
-    pushUndo()
+    pushUndo('Add element')
     updateActivePanel((p) => ({ ...p, elements: [...p.elements, newElement] }))
     return newElement
   },
 
   updateElement(elementId: string, updates: Partial<Omit<PanelElement, 'id'>>) {
-    pushUndo()
+    pushUndo('Edit element')
     updateActivePanel((p) => ({
       ...p,
       elements: p.elements.map((e) => (e.id === elementId ? { ...e, ...updates } : e)),
@@ -363,7 +388,7 @@ export const panelStore = {
   },
 
   deleteElement(elementId: string) {
-    pushUndo()
+    pushUndo('Delete element')
     updateActivePanel((p) => ({
       ...p,
       elements: p.elements.filter((e) => e.id !== elementId),
@@ -376,7 +401,7 @@ export const panelStore = {
   },
 
   moveElement(elementId: string, newRailId: string, newSlotStart: number) {
-    pushUndo()
+    pushUndo('Move element')
     updateActivePanel((p) => ({
       ...p,
       elements: p.elements.map((e) =>
@@ -540,6 +565,18 @@ export const panelStore = {
         ),
       }
     })
+  },
+
+  bulkSetCircuitTag(elementIds: string[], tag: string): void {
+    const panel = getActivePanel()
+    if (!panel) return
+    pushUndo('Bulk tag')
+    updateActivePanel((p) => ({
+      ...p,
+      elements: p.elements.map((e) =>
+        elementIds.includes(e.id) ? { ...e, circuitTag: tag || undefined } : e
+      ),
+    }))
   },
 
   // ── Annotation CRUD ──

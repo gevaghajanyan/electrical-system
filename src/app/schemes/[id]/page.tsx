@@ -21,6 +21,7 @@ export default function SchemeEditorPage({ params }: PageProps) {
   const { panels } = usePanelStore()
   const [zoom, setZoom] = useState(1)
   const [wireRouting, setWireRouting] = useState<'orthogonal' | 'straight'>('orthogonal')
+  const [gridSize, setGridSize] = useState<6 | 12 | 24 | 48>(24)
 
   // Track undo/redo availability via the main store subscription
   const canUndo = useSyncExternalStore(
@@ -200,6 +201,30 @@ export default function SchemeEditorPage({ params }: PageProps) {
         <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
 
         <button
+          onClick={() => schemeStore.autoLayout()}
+          title="Auto-arrange nodes using topological layout"
+          className="flex h-7 items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 text-xs font-medium text-zinc-600 transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+          </svg>
+          Auto Layout
+        </button>
+
+        <button
+          onClick={() => schemeStore.autoLabelWires()}
+          title="Auto-name wires from port labels"
+          className="flex h-7 items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 text-xs font-medium text-zinc-600 transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+          Auto Labels
+        </button>
+
+        <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
+
+        <button
           onClick={() => setWireRouting((m) => m === 'orthogonal' ? 'straight' : 'orthogonal')}
           title="Toggle wire routing mode"
           className={`flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
@@ -216,6 +241,25 @@ export default function SchemeEditorPage({ params }: PageProps) {
           </svg>
           {wireRouting === 'straight' ? 'Straight' : 'Orthogonal'}
         </button>
+
+        <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
+
+        <div className="flex items-center gap-0.5 rounded-md border border-zinc-200 dark:border-zinc-700 p-0.5">
+          {([6, 12, 24, 48] as const).map((g) => (
+            <button
+              key={g}
+              onClick={() => setGridSize(g)}
+              title={`Snap to ${g}px grid`}
+              className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                gridSize === g
+                  ? 'bg-blue-500 text-white'
+                  : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+              }`}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
 
         <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
 
@@ -236,7 +280,7 @@ export default function SchemeEditorPage({ params }: PageProps) {
 
         {/* Canvas */}
         <div className="flex-1 overflow-hidden">
-          <SchemeCanvas scheme={scheme} zoom={zoom} onZoomChange={setZoom} wireRouting={wireRouting} />
+          <SchemeCanvas scheme={scheme} zoom={zoom} onZoomChange={setZoom} wireRouting={wireRouting} gridSize={gridSize} />
         </div>
 
         {/* Right sidebar — properties */}

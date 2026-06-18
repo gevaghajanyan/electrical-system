@@ -6,7 +6,9 @@ import type { Panel } from '@/lib/types/panel'
 import { panelStore } from '@/lib/store/panelStore'
 import { usePanelStore } from '@/lib/hooks/usePanelStore'
 import { exportToPdf, exportFullReport, exportToImage, exportToCsv, exportPanelSchedule } from '@/lib/utils/pdfExport'
+import { exportPanelToSvg } from '@/lib/utils/svgExport'
 import { downloadJson } from '@/lib/utils/importExport'
+import { HistoryModal } from './HistoryModal'
 import { validatePanel } from '@/lib/utils/validation'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -66,6 +68,7 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [validationOpen, setValidationOpen] = useState(false)
   const [loadOpen, setLoadOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   // Panel metadata editor form state
   const [metaName, setMetaName] = useState(panel.name)
@@ -226,6 +229,13 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
         {/* Right: BOM + export / import */}
         <div className="flex items-center gap-1">
           <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
+          <Button size="sm" variant="ghost" onClick={() => setHistoryOpen(true)} title="Change history">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            History
+          </Button>
+
           <Button size="sm" variant="ghost" onClick={() => setLoadOpen(true)} title="Load calculation">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -262,6 +272,34 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
             </svg>
             CSV
           </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Copy share link"
+            onClick={() => {
+              try {
+                const json = JSON.stringify(panel)
+                const encoded = btoa(encodeURIComponent(json))
+                const url = `${window.location.origin}/panels?share=${encoded}`
+                navigator.clipboard.writeText(url).then(() => alert('Share link copied to clipboard!')).catch(() => {
+                  const ta = document.createElement('textarea')
+                  ta.value = url
+                  document.body.appendChild(ta)
+                  ta.select()
+                  document.execCommand('copy')
+                  document.body.removeChild(ta)
+                  alert('Share link copied!')
+                })
+              } catch {
+                alert('Failed to generate share link.')
+              }
+            }}
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            Share
+          </Button>
           <Button size="sm" variant="ghost" onClick={onImport} title="Import panel JSON">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -280,6 +318,12 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
             </svg>
             {t('toolbar.pdf')}
           </Button>
+          <Button size="sm" variant="outline" onClick={() => exportPanelToSvg(panel)} title="Export layout as SVG">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+            SVG
+          </Button>
           <Button size="sm" variant="outline" onClick={() => exportToImage(panel, 'png')} title="Export layout as PNG image">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -295,6 +339,7 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
         </div>
       </header>
 
+      <HistoryModal open={historyOpen} onClose={() => setHistoryOpen(false)} />
       <RailConfigurator open={railConfigOpen} onClose={() => setRailConfigOpen(false)} />
       <BomModal panel={panel} open={bomOpen} onClose={() => setBomOpen(false)} />
       <SnapshotModal open={snapshotOpen} onClose={() => setSnapshotOpen(false)} panel={panel} />

@@ -1,0 +1,195 @@
+{
+  "id": "panel-defance-home-30",
+  "name": "Defance Home 30",
+  "description": "1-bedroom apartment electrical panel: 1 bedroom, 1 bathroom, living room, kitchen",
+  "location": "Defance Home, Apt 30",
+  "voltage": 230,
+  "frequency": 50,
+  "rails": [
+    { "id": "b1", "label": "Main", "slotCount": 12 },
+    { "id": "b2", "label": "Sockets", "slotCount": 7 },
+    { "id": "b3", "label": "Power", "slotCount": 4 }
+  ],
+  "elements": [
+    {
+      "id": "g1",
+      "typeId": "main_switch_2p",
+      "railId": "b1",
+      "slotStart": 0,
+      "slotWidth": 2,
+      "label": "Main Switch 100A",
+      "notes": "Main isolator / master switch",
+      "circuitTag": "Main",
+      "properties": { "kind": "isolator", "rating": 100 }
+    },
+    {
+      "id": "g2",
+      "typeId": "neutral_bar",
+      "railId": "b1",
+      "slotStart": 2,
+      "slotWidth": 2,
+      "label": "Neutral Bar",
+      "notes": "Common neutral busbar",
+      "circuitTag": "Main",
+      "properties": { "kind": "generic" }
+    },
+    {
+      "id": "g3",
+      "typeId": "rcbo_2p",
+      "railId": "b1",
+      "slotStart": 4,
+      "slotWidth": 2,
+      "label": "Always On 16A",
+      "notes": "Always-on circuit for fridge, WiFi, security cameras (diff avtomat)",
+      "circuitTag": "Always On",
+      "properties": { "kind": "rcbo", "rating": 16, "curve": "C", "sensitivity": 30, "type": "A", "breakingCapacity": 6 }
+    },
+    {
+      "id": "g4",
+      "typeId": "rcd_2p",
+      "railId": "b1",
+      "slotStart": 6,
+      "slotWidth": 2,
+      "label": "RCD Lighting 40A",
+      "notes": "RCD protecting all lighting circuits",
+      "circuitTag": "Lighting",
+      "properties": { "kind": "rcd", "rating": 40, "sensitivity": 30, "type": "A" }
+    },
+    {
+      "id": "g5",
+      "typeId": "mcb_1p",
+      "railId": "b1",
+      "slotStart": 8,
+      "slotWidth": 1,
+      "label": "Lighting Bedroom",
+      "notes": "Lighting circuit – Bedroom",
+      "circuitTag": "Lighting",
+      "properties": { "kind": "mcb", "rating": 10, "curve": "C", "breakingCapacity": 6 }
+    },
+    {
+      "id": "g6",
+      "typeId": "mcb_1p",
+      "railId": "b1",
+      "slotStart": 9,
+      "slotWidth": 1,
+      "label": "Lighting Bathroom",
+      "notes": "Lighting circuit – Bathroom",
+      "circuitTag": "Lighting",
+      "properties": { "kind": "mcb", "rating": 10, "curve": "C", "breakingCapacity": 6 }
+    },
+    {
+      "id": "g7",
+      "typeId": "mcb_1p",
+      "railId": "b1",
+      "slotStart": 10,
+      "slotWidth": 1,
+      "label": "Lighting Living Room",
+      "notes": "Lighting circuit – Living Room",
+      "circuitTag": "Lighting",
+      "properties": { "kind": "mcb", "rating": 10, "curve": "C", "breakingCapacity": 6 }
+    },
+    {
+      "id": "g8",
+      "typeId": "mcb_1p",
+      "railId": "b1",
+      "slotStart": 11,
+      "slotWidth": 1,
+      "label": "Lighting Kitchen",
+      "notes": "Lighting circuit – Kitchen",
+      "circuitTag": "Lighting",
+      "properties": { "kind": "mcb", "rating": 10, "curve": "C", "breakingCapacity": 6 }
+    },
+    {
+      "id": "g9",
+      "typeId": "rcd_2p",
+      "railId": "b2",
+      "slotStart": 0,
+      "slotWidth": 2,
+      "label": "RCD Sockets 40A",
+      "notes": "RCD protecting all socket circuits",
+      "circuitTag": "Sockets",
+      "properties": { "kind": "rcd", "rating": 40, "sensitivity": 30, "type": "A" }
+    },
+    {
+      "id": "g10",
+      "typeId": "mcb_1p",
+      "railId": "b2",
+      "slotStart": 2,
+      "slotWidth": 1,
+      "label": "Sockets Bedroom",
+      "notes": "Socket circuit – Bedroom",
+      "circuitTag": "Sockets",
+      "properties": { "kind": "mcb", "rating": 16, "curve": "C", "breakingCapacity": 6 }
+    },
+    {
+      "id": "g11",
+      "typeId": "mcb_1p",
+      "railId": "b2",
+      "slotStart": 3,
+      "slotWidth": 1,
+      "label": "Sockets Bathroom",
+      "notes": "Socket circuit – Bathroom",
+      "circuitTag": "Sockets",
+      "properties": { "kind": "mcb", "rating": 16, "curve": "C", "breakingCapacity": 6 }
+    },
+    {
+      "id": "g12",
+      "typeId": "mcb_1p",
+      "railId": "b2",
+      "slotStart": 4,
+      "slotWidth": 1,
+      "label": "Sockets Living Room",
+      "notes": "Socket circuit – Living Room",
+      "circuitTag": "Sockets",
+      "properties": { "kind": "mcb", "rating": 16, "curve": "C", "breakingCapacity": 6 }
+    },
+    {
+      "id": "g13",
+      "typeId": "mcb_1p",
+      "railId": "b2",
+      "slotStart": 5,
+      "slotWidth": 1,
+      "label": "Sockets Kitchen 1",
+      "notes": "Socket circuit – Kitchen line 1",
+      "circuitTag": "Sockets",
+      "properties": { "kind": "mcb", "rating": 16, "curve": "C", "breakingCapacity": 6 }
+    },
+    {
+      "id": "g14",
+      "typeId": "mcb_1p",
+      "railId": "b2",
+      "slotStart": 6,
+      "slotWidth": 1,
+      "label": "Sockets Kitchen 2",
+      "notes": "Socket circuit – Kitchen line 2",
+      "circuitTag": "Sockets",
+      "properties": { "kind": "mcb", "rating": 16, "curve": "C", "breakingCapacity": 6 }
+    },
+    {
+      "id": "g15",
+      "typeId": "mcb_2p",
+      "railId": "b3",
+      "slotStart": 0,
+      "slotWidth": 2,
+      "label": "Induction Plate 32A",
+      "notes": "Induction hob / cooking plate power circuit",
+      "circuitTag": "Power",
+      "properties": { "kind": "mcb", "rating": 32, "curve": "C", "breakingCapacity": 6 }
+    },
+    {
+      "id": "g16",
+      "typeId": "mcb_2p",
+      "railId": "b3",
+      "slotStart": 2,
+      "slotWidth": 2,
+      "label": "AC Living Room 25A",
+      "notes": "Air conditioner – Living Room",
+      "circuitTag": "Power",
+      "properties": { "kind": "mcb", "rating": 25, "curve": "C", "breakingCapacity": 6 }
+    }
+  ],
+  "connections": [],
+  "annotations": [],
+  "createdAt": "2026-06-18T00:00:00.000Z",
+  "updatedAt": "2026-06-18T00:00:00.000Z"
+}

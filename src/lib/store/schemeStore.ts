@@ -372,6 +372,80 @@ export const schemeStore = {
     setState((s) => ({ ...s, schemes: snap.schemes }))
   },
 
+  // ── Auto-layout ──
+  autoLayout(): void {
+    const sc = getActiveScheme()
+    if (!sc || sc.nodes.length === 0) return
+    pushUndo()
+
+    const nodeIds = sc.nodes.map((n) => n.id)
+    const outgoing = new Map<string, Set<string>>()
+    const inDegree = new Map<string, number>()
+    nodeIds.forEach((id) => { outgoing.set(id, new Set()); inDegree.set(id, 0) })
+    sc.wires.forEach((w) => {
+      outgoing.get(w.fromNodeId)?.add(w.toNodeId)
+      inDegree.set(w.toNodeId, (inDegree.get(w.toNodeId) ?? 0) + 1)
+    })
+
+    // Kahn's topological sort → column levels
+    const level = new Map<string, number>()
+    const queue = nodeIds.filter((id) => (inDegree.get(id) ?? 0) === 0)
+    queue.forEach((id) => level.set(id, 0))
+    let frontier = [...queue]
+    while (frontier.length > 0) {
+      const next: string[] = []
+      for (const id of frontier) {
+        const lv = level.get(id) ?? 0
+        outgoing.get(id)?.forEach((nid) => {
+          const newLv = lv + 1
+          if (!level.has(nid) || level.get(nid)! < newLv) level.set(nid, newLv)
+          next.push(nid)
+        })
+      }
+      frontier = next.filter((id, i, arr) => arr.indexOf(id) === i)
+    }
+    nodeIds.forEach((id) => { if (!level.has(id)) level.set(id, 0) })
+
+    const byLevel = new Map<number, string[]>()
+    level.forEach((lv, id) => {
+      if (!byLevel.has(lv)) byLevel.set(lv, [])
+      byLevel.get(lv)!.push(id)
+    })
+
+    const GRID = 24, COL_GAP = 220, ROW_GAP = 130, OX = 96, OY = 96
+
+    updateActiveScheme((s) => ({
+      ...s,
+      nodes: s.nodes.map((node) => {
+        const lv = level.get(node.id) ?? 0
+        const col = byLevel.get(lv)!
+        const row = col.indexOf(node.id)
+        return {
+          ...node,
+          x: Math.round((OX + lv * COL_GAP) / GRID) * GRID,
+          y: Math.round((OY + row * ROW_GAP) / GRID) * GRID,
+        }
+      }),
+    }))
+  },
+
+  // ── Auto-label wires ──
+  autoLabelWires(): void {
+    pushUndo()
+    updateActiveScheme((sc) => ({
+      ...sc,
+      wires: sc.wires.map((wire) => {
+        const fromNode = sc.nodes.find((n) => n.id === wire.fromNodeId)
+        const toNode = sc.nodes.find((n) => n.id === wire.toNodeId)
+        if (!fromNode || !toNode) return wire
+        const fromPort = SCHEME_DEFS[fromNode.type]?.ports[wire.fromPortIndex]
+        const toPort = SCHEME_DEFS[toNode.type]?.ports[wire.toPortIndex]
+        const label = fromPort?.label || toPort?.label || ''
+        return label ? { ...wire, label } : wire
+      }),
+    }))
+  },
+
   // ── Save status ──
   getSaveStatus(): SaveStatus {
     return _saveStatus

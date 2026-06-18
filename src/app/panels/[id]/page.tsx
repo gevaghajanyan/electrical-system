@@ -14,6 +14,7 @@ import { PropertiesPanel } from '@/components/board/PropertiesPanel'
 import { PanelCanvas } from '@/components/board/PanelCanvas'
 import { BoardToolbar } from '@/components/board/BoardToolbar'
 import { SchematicView } from '@/components/board/SchematicView'
+import { ConnectionMatrix } from '@/components/board/ConnectionMatrix'
 import { SaveStatusIndicator } from '@/components/SaveStatusIndicator'
 import { ShortcutModal } from '@/components/ShortcutModal'
 
@@ -28,8 +29,9 @@ export default function PanelEditorPage({
   const panel = panels.find((p) => p.id === id) ?? null
 
   const [draggingTypeId, setDraggingTypeId] = useState<ElementTypeId | null>(null)
-  const [view, setView] = useState<'canvas' | 'schematic'>('canvas')
+  const [view, setView] = useState<'canvas' | 'schematic' | 'matrix'>('canvas')
   const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set())
+  const [multiTagInput, setMultiTagInput] = useState('')
   const [shortcutModalOpen, setShortcutModalOpen] = useState(false)
   const [annotationMode, setAnnotationMode] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -296,7 +298,7 @@ export default function PanelEditorPage({
         <div className="relative flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
           {/* View tabs + search */}
           <div className="shrink-0 flex items-center gap-0.5 px-2 py-1.5 border-b border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-            {(['canvas', 'schematic'] as const).map((v) => (
+            {(['canvas', 'schematic', 'matrix'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -306,7 +308,7 @@ export default function PanelEditorPage({
                     : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
                 }`}
               >
-                {v === 'canvas' ? t('editor.layout') : t('editor.schematic')}
+                {v === 'canvas' ? t('editor.layout') : v === 'schematic' ? t('editor.schematic') : 'Matrix'}
               </button>
             ))}
             {view === 'canvas' && (
@@ -341,8 +343,10 @@ export default function PanelEditorPage({
               annotationMode={annotationMode}
               searchQuery={searchQuery}
             />
-          ) : (
+          ) : view === 'schematic' ? (
             <SchematicView panel={panel} />
+          ) : (
+            <ConnectionMatrix panel={panel} />
           )}
 
           {/* Multi-select floating action bar */}
@@ -371,6 +375,27 @@ export default function PanelEditorPage({
                   </select>
                 </div>
               )}
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-zinc-400">Tag</span>
+                <input
+                  value={multiTagInput}
+                  onChange={(e) => setMultiTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      panelStore.bulkSetCircuitTag(Array.from(multiSelectedIds), multiTagInput.trim())
+                      setMultiTagInput('')
+                    }
+                    e.stopPropagation()
+                  }}
+                  placeholder="e.g. C1"
+                  className="w-16 rounded-md border border-zinc-600 bg-zinc-800 px-2 py-1 text-xs text-white placeholder-zinc-500 focus:border-blue-400 focus:outline-none"
+                />
+                <button
+                  onClick={() => { panelStore.bulkSetCircuitTag(Array.from(multiSelectedIds), multiTagInput.trim()); setMultiTagInput('') }}
+                  className="rounded-md bg-zinc-700 px-2 py-1 text-xs font-medium text-white hover:bg-zinc-600"
+                >Apply</button>
+              </div>
+              <div className="h-4 w-px bg-zinc-700" />
               <button
                 onClick={() => {
                   const newIds = new Set<string>()

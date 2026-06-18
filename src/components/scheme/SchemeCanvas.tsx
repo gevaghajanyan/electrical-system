@@ -6,13 +6,14 @@ import { useSchemeStore } from '@/lib/hooks/useSchemeStore'
 import { SCHEME_DEFS } from '@/lib/constants/schemeDefs'
 import type { Scheme, SchemeNode, SchemePort, SchemeNodeType } from '@/lib/types/scheme'
 
-const GRID = 24
+const DEFAULT_GRID = 24
 
 interface Props {
   scheme: Scheme
   zoom: number
   onZoomChange: (z: number) => void
   wireRouting?: 'orthogonal' | 'straight'
+  gridSize?: 6 | 12 | 24 | 48
 }
 
 function portColor(label: string): string {
@@ -22,8 +23,8 @@ function portColor(label: string): string {
   return '#94a3b8'
 }
 
-function snap(v: number): number {
-  return Math.round(v / GRID) * GRID
+function snapTo(v: number, grid: number): number {
+  return Math.round(v / grid) * grid
 }
 
 // ── Rotated port position ─────────────────────────────────────────────────────
@@ -219,7 +220,8 @@ function NodeSymbol({ type }: { type: SchemeNodeType }) {
 
 // ── Main canvas ───────────────────────────────────────────────────────────────
 
-export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthogonal' }: Props) {
+export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthogonal', gridSize = DEFAULT_GRID }: Props) {
+  const snap = (v: number) => snapTo(v, gridSize)
   const storeState = useSchemeStore()
   const { selectedNodeId, selectedWireId, connectingFrom } = storeState
 
@@ -652,14 +654,14 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
       <defs>
         <pattern
           id="scheme-grid"
-          width={GRID * zoom}
-          height={GRID * zoom}
+          width={gridSize * zoom}
+          height={gridSize * zoom}
           patternUnits="userSpaceOnUse"
-          x={pan.x % (GRID * zoom)}
-          y={pan.y % (GRID * zoom)}
+          x={pan.x % (gridSize * zoom)}
+          y={pan.y % (gridSize * zoom)}
         >
           <path
-            d={`M ${GRID * zoom} 0 L 0 0 0 ${GRID * zoom}`}
+            d={`M ${gridSize * zoom} 0 L 0 0 0 ${gridSize * zoom}`}
             fill="none"
             stroke="#e5e7eb"
             strokeWidth={0.5}

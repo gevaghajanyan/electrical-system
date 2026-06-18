@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'next/navigation'
@@ -207,6 +207,28 @@ export default function PanelsPage() {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('updated')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
+
+  // Handle ?share= URL for panel importing
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const shareData = params.get('share')
+    if (!shareData) return
+    try {
+      const json = decodeURIComponent(atob(shareData))
+      const panel = JSON.parse(json) as Panel
+      if (!panel.id || !panel.name) throw new Error('Invalid')
+      if (confirm(`Import shared panel "${panel.name}"?`)) {
+        panelStore.importPanel(panel)
+      }
+    } catch {
+      // silently ignore malformed share links
+    }
+    // Remove share param from URL without reload
+    const url = new URL(window.location.href)
+    url.searchParams.delete('share')
+    window.history.replaceState({}, '', url.toString())
+  }, [])
 
   const filtered = useMemo(() => {
     let result = [...panels]
@@ -260,6 +282,38 @@ export default function PanelsPage() {
             </Button>
           </div>
         </div>
+
+        {/* Sample projects */}
+        {panels.length === 0 && (
+          <div className="mb-5 rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900 p-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Sample Projects</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { file: 'defance-home-32.json', name: 'Defance-home-32', desc: '3 bed · 2 bath · 4 rails' },
+                { file: 'defance-home-29.json', name: 'Defance-home-29', desc: '1 bed · 1 bath · 3 rails' },
+                { file: 'defance-home-30.json', name: 'Defance-home-30', desc: '1 bed · 1 bath · 3 rails' },
+              ].map(({ file, name, desc }) => (
+                <button
+                  key={file}
+                  className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 p-3 text-left hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/samples/${file}`)
+                      const panel = await res.json() as Panel
+                      const imported = panelStore.importPanel(panel)
+                      router.push(`/panels/${imported.id}`)
+                    } catch {
+                      alert('Failed to load sample.')
+                    }
+                  }}
+                >
+                  <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{name}</p>
+                  <p className="mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">{desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {panels.length > 0 && (
           <div className="mb-5 flex items-center gap-3">
