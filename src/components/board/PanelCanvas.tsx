@@ -6,7 +6,7 @@ import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import type { Panel, ElementTypeId } from '@/lib/types/panel'
 import {
-  SLOT_WIDTH_PX, RAIL_ROW_HEIGHT_PX, PANEL_PADDING_PX, ELEMENT_HEIGHT_PX, ELEMENT_TOP_Y,
+  SLOT_WIDTH_PX, RAIL_ROW_HEIGHT_PX, PANEL_PADDING_PX, ELEMENT_HEIGHT_PX, ELEMENT_TOP_Y, SLOT_GAP,
 } from '@/lib/constants/canvasLayout'
 import { ELEMENT_DEFS_MAP } from '@/lib/constants/elementDefs'
 import { panelStore } from '@/lib/store/panelStore'
@@ -39,14 +39,18 @@ function getRailAndSlot(
   return null
 }
 
+interface RubberBand { x1: number; y1: number; x2: number; y2: number }
+
 interface PanelCanvasProps {
   panel: Panel
   draggingTypeId: ElementTypeId | null
   onDragEnd: () => void
   className?: string
+  selectedElementIds: Set<string>
+  onMultiSelectChange: (ids: Set<string>) => void
 }
 
-export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '' }: PanelCanvasProps) {
+export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', selectedElementIds, onMultiSelectChange }: PanelCanvasProps) {
   const stageRef = useRef<Konva.Stage | null>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const { zoom, pan, selectedElementId, selectedConnectionId, connectingFrom } = usePanelStore()
@@ -54,6 +58,9 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '' }
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [canvasMousePos, setCanvasMousePos] = useState({ x: 0, y: 0 })
   const [dropHighlight, setDropHighlight] = useState<DropHighlight | null>(null)
+  const [rubberBand, setRubberBand] = useState<RubberBand | null>(null)
+  const rbRef = useRef<RubberBand | null>(null)
+  const wasRubberBandingRef = useRef(false)
 
   // Observe container size for Stage dimensions
   useEffect(() => {
@@ -83,24 +90,83 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '' }
 
   // Click on empty canvas → cancel connecting or deselect
   const handleStageClick = useCallback(() => {
+    if (wasRubberBandingRef.current) {
+      wasRubberBandingRef.current = false
+      return
+    }
     panelStore.cancelConnecting()
     panelStore.selectElement(null)
-  }, [])
+    onMultiSelectChange(new Set())
+  }, [onMultiSelectChange])
 
-  // Track canvas content coordinates for wire preview
-  const handleMouseMove = useCallback(
+  // Track canvas content coordinates for wire preview and rubber-band
+  const handleStageMouseMove = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
-      if (!connectingFrom) return
-      const container = stageRef.current?.container()
-      if (!container) return
-      const rect = container.getBoundingClientRect()
-      setCanvasMousePos({
-        x: (e.evt.clientX - rect.left - pan.x) / zoom,
-        y: (e.evt.clientY - rect.top - pan.y) / zoom,
-      })
+      if (connectingFrom) {
+        const container = stageRef.current?.container()
+        if (container) {
+          const rect = container.getBoundingClientRect()
+          setCanvasMousePos({
+            x: (e.evt.clientX - rect.left - pan.x) / zoom,
+            y: (e.evt.clientY - rect.top - pan.y) / zoom,
+          })
+        }
+      }
+      if (rbRef.current) {
+        const stage = stageRef.current
+        if (!stage) return
+        const pos = stage.getPointerPosition()
+        if (!pos) return
+        const r = { ...rbRef.current, x2: (pos.x - pan.x) / zoom, y2: (pos.y - pan.y) / zoom }
+        rbRef.current = r
+        setRubberBand({ ...r })
+      }
     },
     [connectingFrom, pan, zoom]
   )
+
+  function handleStageMouseDown() {
+    if (connectingFrom) return
+    const stage = stageRef.current
+    if (!stage) return
+    const pos = stage.getPointerPosition()
+    if (!pos) return
+    const r: RubberBand = {
+      x1: (pos.x - pan.x) / zoom, y1: (pos.y - pan.y) / zoom,
+      x2: (pos.x - pan.x) / zoom, y2: (pos.y - pan.y) / zoom,
+    }
+    rbRef.current = r
+    setRubberBand(r)
+  }
+
+  function handleStageMouseUp() {
+    const r = rbRef.current
+    rbRef.current = null
+    setRubberBand(null)
+    if (!r) return
+    const dx = Math.abs(r.x2 - r.x1)
+    const dy = Math.abs(r.y2 - r.y1)
+    if (dx < 6 && dy < 6) return
+
+    wasRubberBandingRef.current = true
+    const x1 = Math.min(r.x1, r.x2)
+    const y1 = Math.min(r.y1, r.y2)
+    const x2 = Math.max(r.x1, r.x2)
+    const y2 = Math.max(r.y1, r.y2)
+    const selected = new Set<string>()
+    for (const el of panel.elements) {
+      const ex = PANEL_PADDING_PX + el.slotStart * SLOT_WIDTH_PX
+      const ey = PANEL_PADDING_PX + (railIndexMap.get(el.railId) ?? 0) * RAIL_ROW_HEIGHT_PX + ELEMENT_TOP_Y
+      const ew = el.slotWidth * SLOT_WIDTH_PX - SLOT_GAP
+      const eh = ELEMENT_HEIGHT_PX
+      if (ex < x2 && ex + ew > x1 && ey < y2 && ey + eh > y1) selected.add(el.id)
+    }
+    if (selected.size > 0) {
+      onMultiSelectChange(selected)
+      panelStore.selectElement(null)
+    }
+    wrapperRef.current?.focus({ preventScroll: true })
+  }
 
   // ── HTML drag-from-palette events ──────────────────────────────────────────
 
@@ -167,13 +233,20 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '' }
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Delete' || e.key === 'Backspace') {
       if (document.activeElement === wrapperRef.current) {
-        if (selectedElementId) panelStore.deleteElement(selectedElementId)
-        else if (selectedConnectionId) panelStore.deleteConnection(selectedConnectionId)
+        if (selectedElementIds.size > 0) {
+          selectedElementIds.forEach(id => panelStore.deleteElement(id))
+          onMultiSelectChange(new Set())
+        } else if (selectedElementId) {
+          panelStore.deleteElement(selectedElementId)
+        } else if (selectedConnectionId) {
+          panelStore.deleteConnection(selectedConnectionId)
+        }
       }
     }
     if (e.key === 'Escape') {
       panelStore.cancelConnecting()
       panelStore.selectElement(null)
+      onMultiSelectChange(new Set())
     }
   }
 
@@ -238,7 +311,9 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '' }
           height={containerSize.h}
           onWheel={handleWheel}
           onClick={handleStageClick}
-          onMouseMove={handleMouseMove}
+          onMouseDown={handleStageMouseDown}
+          onMouseMove={handleStageMouseMove}
+          onMouseUp={handleStageMouseUp}
         >
           <Layer>
             <Group x={pan.x} y={pan.y} scaleX={zoom} scaleY={zoom}>
@@ -284,9 +359,40 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '' }
                   allElements={panel.elements}
                   allConnections={panel.connections}
                   isSelected={element.id === selectedElementId}
+                  isMultiSelected={selectedElementIds.has(element.id)}
                   connectingFrom={connectingFrom}
+                  onSingleSelect={(id) => {
+                    panelStore.selectElement(id)
+                    if (selectedElementIds.size > 0) onMultiSelectChange(new Set())
+                  }}
+                  onShiftClick={(id) => {
+                    const next = new Set(selectedElementIds)
+                    if (next.has(id)) next.delete(id)
+                    else next.add(id)
+                    onMultiSelectChange(next)
+                    panelStore.selectElement(null)
+                  }}
                 />
               ))}
+
+              {/* Rubber-band selection rect */}
+              {rubberBand && (() => {
+                const rx = Math.min(rubberBand.x1, rubberBand.x2)
+                const ry = Math.min(rubberBand.y1, rubberBand.y2)
+                const rw = Math.abs(rubberBand.x2 - rubberBand.x1)
+                const rh = Math.abs(rubberBand.y2 - rubberBand.y1)
+                const sw = 1 / zoom
+                return (
+                  <Rect
+                    x={rx} y={ry} width={rw} height={rh}
+                    fill="rgba(59,130,246,0.1)"
+                    stroke="#3b82f6"
+                    strokeWidth={sw}
+                    dash={[4 / zoom, 4 / zoom]}
+                    listening={false}
+                  />
+                )
+              })()}
             </Group>
           </Layer>
         </Stage>

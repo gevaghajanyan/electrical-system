@@ -7,8 +7,9 @@ import type { SchemeNodeType } from '@/lib/types/scheme'
 // Group the palette items
 const GROUPS: { label: string; types: SchemeNodeType[] }[] = [
   { label: 'Power', types: ['power_ac'] },
-  { label: 'Switching', types: ['switch_spst'] },
-  { label: 'Loads', types: ['lamp_230', 'led_220'] },
+  { label: 'Switching', types: ['switch_spst', 'push_button', 'switch_2way'] },
+  { label: 'Loads', types: ['lamp_230', 'led_220', 'motor'] },
+  { label: 'Outlets', types: ['socket_outlet'] },
   { label: 'Other', types: ['transformer_sd', 'junction'] },
 ]
 

@@ -12,6 +12,7 @@ import { PropertiesPanel } from '@/components/board/PropertiesPanel'
 import { PanelCanvas } from '@/components/board/PanelCanvas'
 import { BoardToolbar } from '@/components/board/BoardToolbar'
 import { SchematicView } from '@/components/board/SchematicView'
+import { SaveStatusIndicator } from '@/components/SaveStatusIndicator'
 
 export default function PanelEditorPage({
   params,
@@ -25,6 +26,7 @@ export default function PanelEditorPage({
 
   const [draggingTypeId, setDraggingTypeId] = useState<ElementTypeId | null>(null)
   const [view, setView] = useState<'canvas' | 'schematic'>('canvas')
+  const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -72,7 +74,14 @@ export default function PanelEditorPage({
       if (pasted) panelStore.selectElement(pasted.id)
       return
     }
-  }, [selectedElementId])
+    // Bulk delete multi-selected (window-level, works even without canvas focus)
+    if ((e.key === 'Delete' || e.key === 'Backspace') && multiSelectedIds.size > 0) {
+      e.preventDefault()
+      multiSelectedIds.forEach(id => panelStore.deleteElement(id))
+      setMultiSelectedIds(new Set())
+      return
+    }
+  }, [selectedElementId, multiSelectedIds])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
@@ -132,8 +141,10 @@ export default function PanelEditorPage({
           {panel.name}
         </span>
 
-        {/* Undo/redo in breadcrumb */}
-        <div className="ml-auto flex items-center gap-1">
+        {/* Save indicator + undo/redo */}
+        <div className="ml-auto flex items-center gap-2">
+          <SaveStatusIndicator />
+          <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
           <button
             onClick={() => panelStore.undo()}
             disabled={!panelStore.canUndo()}
@@ -186,7 +197,7 @@ export default function PanelEditorPage({
         </aside>
 
         {/* Canvas / Schematic (main area) */}
-        <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
+        <div className="relative flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
           {/* View tabs */}
           <div className="shrink-0 flex items-center gap-0.5 px-2 py-1.5 border-b border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
             {(['canvas', 'schematic'] as const).map((v) => (
@@ -210,9 +221,38 @@ export default function PanelEditorPage({
               draggingTypeId={draggingTypeId}
               onDragEnd={handleDragEnd}
               className="flex-1 min-h-0"
+              selectedElementIds={multiSelectedIds}
+              onMultiSelectChange={setMultiSelectedIds}
             />
           ) : (
             <SchematicView panel={panel} />
+          )}
+
+          {/* Multi-select floating action bar */}
+          {view === 'canvas' && multiSelectedIds.size > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-900/95 px-4 py-2 shadow-xl backdrop-blur-sm">
+              <span className="text-sm font-medium text-white">
+                {multiSelectedIds.size} elements selected
+              </span>
+              <button
+                onClick={() => {
+                  multiSelectedIds.forEach(id => panelStore.deleteElement(id))
+                  setMultiSelectedIds(new Set())
+                }}
+                className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-600"
+              >
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete {multiSelectedIds.size}
+              </button>
+              <button
+                onClick={() => setMultiSelectedIds(new Set())}
+                className="text-xs text-zinc-400 transition-colors hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
           )}
         </div>
 

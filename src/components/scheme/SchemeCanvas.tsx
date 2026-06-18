@@ -25,6 +25,27 @@ function snap(v: number): number {
   return Math.round(v / GRID) * GRID
 }
 
+// ── Rotated port position ─────────────────────────────────────────────────────
+
+function getRotatedPortPos(node: SchemeNode, port: SchemePort): { x: number; y: number } {
+  const def = SCHEME_DEFS[node.type]
+  const cx = node.x + def.width / 2
+  const cy = node.y + def.height / 2
+  const relX = port.x - def.width / 2
+  const relY = port.y - def.height / 2
+  const rad = (node.rotation * Math.PI) / 180
+  const rotX = relX * Math.cos(rad) - relY * Math.sin(rad)
+  const rotY = relX * Math.sin(rad) + relY * Math.cos(rad)
+  return { x: cx + rotX, y: cy + rotY }
+}
+
+// ── Orthogonal wire path ──────────────────────────────────────────────────────
+
+function orthogonalPath(x1: number, y1: number, x2: number, y2: number): string {
+  const midX = (x1 + x2) / 2
+  return `M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`
+}
+
 // ── Node symbols ─────────────────────────────────────────────────────────────
 
 function SwitchSymbol() {
@@ -104,14 +125,94 @@ function PowerAcSymbol() {
   )
 }
 
+function SocketOutletSymbol() {
+  return (
+    <g stroke="#ffffff" strokeWidth={1.5} fill="none">
+      {/* Outer circle */}
+      <circle cx={36} cy={28} r={20} />
+      {/* Horizontal centre line */}
+      <line x1={18} y1={28} x2={54} y2={28} />
+      {/* Socket holes */}
+      <line x1={28} y1={32} x2={28} y2={42} strokeWidth={2.5} strokeLinecap="round" />
+      <line x1={44} y1={32} x2={44} y2={42} strokeWidth={2.5} strokeLinecap="round" />
+    </g>
+  )
+}
+
+function PushButtonSymbol() {
+  return (
+    <g stroke="#ffffff" strokeWidth={1.5} fill="none">
+      {/* Contact dots */}
+      <circle cx={10} cy={24} r={2.5} fill="#ffffff" />
+      <circle cx={50} cy={24} r={2.5} fill="#ffffff" />
+      {/* Left wire segment */}
+      <line x1={12} y1={24} x2={26} y2={24} />
+      {/* Button body (rect) */}
+      <rect x={26} y={20} width={12} height={8} rx={2} fill="rgba(255,255,255,0.2)" stroke="#ffffff" strokeWidth={1.5} />
+      {/* Right wire segment */}
+      <line x1={38} y1={24} x2={52} y2={24} />
+      {/* Press-direction arrow */}
+      <line x1={32} y1={14} x2={32} y2={20} strokeWidth={1} />
+      <polyline points="29,18 32,20 35,18" strokeWidth={1} strokeLinejoin="round" />
+    </g>
+  )
+}
+
+function Switch2WaySymbol() {
+  return (
+    <g stroke="#ffffff" strokeWidth={1.5} fill="none">
+      {/* Common terminal dot */}
+      <circle cx={10} cy={28} r={3} fill="#ffffff" />
+      {/* Lever in position A (upper) */}
+      <line x1={13} y1={28} x2={66} y2={18} />
+      {/* Output terminal dots */}
+      <circle cx={72} cy={16} r={3} fill="#ffffff" />
+      <circle cx={72} cy={40} r={3} fill="#ffffff" />
+      {/* Output wires */}
+      <line x1={69} y1={16} x2={80} y2={16} />
+      <line x1={69} y1={40} x2={80} y2={40} />
+    </g>
+  )
+}
+
+function MotorSymbol() {
+  return (
+    <g stroke="#ffffff" strokeWidth={1.5} fill="none">
+      {/* Large circle */}
+      <circle cx={36} cy={36} r={26} />
+      {/* "M" label */}
+      <text
+        x={36}
+        y={42}
+        textAnchor="middle"
+        fontSize={20}
+        fontWeight="bold"
+        fill="#ffffff"
+        fontFamily="sans-serif"
+        style={{ pointerEvents: 'none', userSelect: 'none' }}
+      >
+        M
+      </text>
+      {/* Three input lines at top */}
+      <line x1={20} y1={10} x2={20} y2={16} strokeWidth={2} />
+      <line x1={36} y1={10} x2={36} y2={16} strokeWidth={2} />
+      <line x1={52} y1={10} x2={52} y2={16} strokeWidth={2} />
+    </g>
+  )
+}
+
 function NodeSymbol({ type }: { type: SchemeNodeType }) {
   switch (type) {
-    case 'switch_spst': return <SwitchSymbol />
-    case 'lamp_230': return <LampSymbol />
-    case 'led_220': return <LedSymbol />
+    case 'switch_spst':   return <SwitchSymbol />
+    case 'lamp_230':      return <LampSymbol />
+    case 'led_220':       return <LedSymbol />
     case 'transformer_sd': return <TransformerSymbol />
-    case 'power_ac': return <PowerAcSymbol />
-    case 'junction': return null
+    case 'power_ac':      return <PowerAcSymbol />
+    case 'junction':      return null
+    case 'socket_outlet': return <SocketOutletSymbol />
+    case 'push_button':   return <PushButtonSymbol />
+    case 'switch_2way':   return <Switch2WaySymbol />
+    case 'motor':         return <MotorSymbol />
   }
 }
 
@@ -165,6 +266,18 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange }: Props) {
         schemeStore.cancelConnecting()
         schemeStore.selectNode(null)
         schemeStore.selectWire(null)
+      }
+      if (e.key === 'r' || e.key === 'R') {
+        const { selectedNodeId: nid } = schemeStore.getState()
+        if (nid) {
+          const currentScheme = schemeStore.getActiveScheme()
+          const node = currentScheme?.nodes.find((n) => n.id === nid)
+          if (node) {
+            schemeStore.updateNode(nid, {
+              rotation: (((node.rotation + 90) % 360) as 0 | 90 | 180 | 270),
+            })
+          }
+        }
       }
     }
     window.addEventListener('keydown', handleKey)
@@ -286,29 +399,31 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange }: Props) {
       const toPort = toDef.ports[wire.toPortIndex]
       if (!fromPort || !toPort) return null
 
-      const x1 = fromNode.x + fromPort.x
-      const y1 = fromNode.y + fromPort.y
-      const x2 = toNode.x + toPort.x
-      const y2 = toNode.y + toPort.y
+      const { x: x1, y: y1 } = getRotatedPortPos(fromNode, fromPort)
+      const { x: x2, y: y2 } = getRotatedPortPos(toNode, toPort)
 
       const isSelected = wire.id === selectedWireId
       const color = portColor(fromPort.label || toPort.label)
       const mx = (x1 + x2) / 2
       const my = (y1 + y2) / 2
+      const d = orthogonalPath(x1, y1, x2, y2)
 
       return (
         <g key={wire.id} onClick={(e) => { e.stopPropagation(); schemeStore.selectWire(wire.id) }} style={{ cursor: 'pointer' }}>
           {/* Wider invisible hit target */}
-          <line
-            x1={x1} y1={y1} x2={x2} y2={y2}
+          <path
+            d={d}
             stroke="transparent"
             strokeWidth={10}
+            fill="none"
           />
-          <line
-            x1={x1} y1={y1} x2={x2} y2={y2}
+          <path
+            d={d}
             stroke={isSelected ? '#fbbf24' : color}
             strokeWidth={isSelected ? 3 : 2}
             strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
           />
           {wire.label && (
             <text
@@ -336,19 +451,19 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange }: Props) {
     const fromPort = fromDef.ports[connectingFrom.portIndex]
     if (!fromPort) return null
 
-    const x1 = fromNode.x + fromPort.x
-    const y1 = fromNode.y + fromPort.y
+    const { x: x1, y: y1 } = getRotatedPortPos(fromNode, fromPort)
+    const x2 = mousePos.x
+    const y2 = mousePos.y
+    const d = orthogonalPath(x1, y1, x2, y2)
 
     return (
-      <line
-        x1={x1}
-        y1={y1}
-        x2={mousePos.x}
-        y2={mousePos.y}
+      <path
+        d={d}
         stroke="#fbbf24"
         strokeWidth={2}
         strokeDasharray="4 4"
         strokeLinecap="round"
+        fill="none"
         style={{ pointerEvents: 'none' }}
       />
     )
@@ -357,44 +472,49 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange }: Props) {
   function renderNode(node: SchemeNode) {
     const def = SCHEME_DEFS[node.type]
     const isSelected = node.id === selectedNodeId
+    const cx = node.x + def.width / 2
+    const cy = node.y + def.height / 2
 
     return (
       <g
         key={node.id}
-        transform={`translate(${node.x}, ${node.y})`}
         style={{ cursor: dragging?.nodeId === node.id ? 'grabbing' : 'grab' }}
         onMouseDown={(e) => handleNodeMouseDown(e, node)}
         onClick={(e) => handleNodeClick(e, node)}
       >
-        {/* Selection outline */}
-        {isSelected && (
+        {/* Rotated group containing shape + symbol + selection */}
+        <g transform={`rotate(${node.rotation}, ${cx}, ${cy}) translate(${node.x}, ${node.y})`}>
+          {/* Selection outline */}
+          {isSelected && (
+            <rect
+              x={-3}
+              y={-3}
+              width={def.width + 6}
+              height={def.height + 6}
+              rx={8}
+              fill="none"
+              stroke="#fbbf24"
+              strokeWidth={2}
+              style={{ pointerEvents: 'none' }}
+            />
+          )}
+          {/* Body */}
           <rect
-            x={-3}
-            y={-3}
-            width={def.width + 6}
-            height={def.height + 6}
-            rx={8}
-            fill="none"
-            stroke="#fbbf24"
-            strokeWidth={2}
-            style={{ pointerEvents: 'none' }}
+            x={0}
+            y={0}
+            width={def.width}
+            height={def.height}
+            rx={5}
+            fill={def.color}
           />
-        )}
-        {/* Body */}
-        <rect
-          x={0}
-          y={0}
-          width={def.width}
-          height={def.height}
-          rx={5}
-          fill={def.color}
-        />
-        {/* Symbol */}
-        <NodeSymbol type={node.type} />
-        {/* Label */}
+          {/* Symbol */}
+          <NodeSymbol type={node.type} />
+        </g>
+
+        {/* Label — always upright, below the node's bounding box centre */}
         <text
-          x={def.width / 2}
-          y={def.height + 14}
+          x={cx}
+          y={node.y + def.height + 14}
           textAnchor="middle"
           fontSize={10}
           fill="#374151"
@@ -403,7 +523,8 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange }: Props) {
         >
           {node.label}
         </text>
-        {/* Port dots */}
+
+        {/* Port dots — rendered at rotated positions so wires connect correctly */}
         {def.ports.map((port: SchemePort) => renderPortDot(node, port))}
       </g>
     )
@@ -414,9 +535,10 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange }: Props) {
     const isSource =
       connectingFrom?.nodeId === node.id && connectingFrom?.portIndex === port.index
     const color = portColor(port.label)
+    const { x, y } = getRotatedPortPos(node, port)
 
     return (
-      <g key={port.index} transform={`translate(${port.x}, ${port.y})`}>
+      <g key={port.index} transform={`translate(${x}, ${y})`}>
         <circle
           r={7}
           fill="transparent"

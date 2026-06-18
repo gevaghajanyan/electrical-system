@@ -169,9 +169,32 @@ export default function SchemeEditorPage({ params }: PageProps) {
                   />
                 </div>
                 <div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() =>
+                      schemeStore.updateNode(selectedNode.id, {
+                        rotation: ((((selectedNode.rotation ?? 0) + 90) % 360) as 0 | 90 | 180 | 270),
+                      })
+                    }
+                  >
+                    <svg className="h-3.5 w-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Rotate 90°
+                  </Button>
+                </div>
+                <div>
                   <p className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Position</p>
                   <p className="text-xs text-zinc-600 dark:text-zinc-300">
                     x: {selectedNode.x}, y: {selectedNode.y}
+                  </p>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Rotation</p>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-300">
+                    {selectedNode.rotation ?? 0}°
                   </p>
                 </div>
                 <Button
@@ -265,6 +288,7 @@ export default function SchemeEditorPage({ params }: PageProps) {
             <ul className="space-y-1 text-xs text-zinc-400 dark:text-zinc-500">
               <li>Click port dots to connect wires</li>
               <li>Drag nodes to move them</li>
+              <li>R to rotate selected node 90°</li>
               <li>Middle mouse to pan</li>
               <li>Ctrl+wheel to zoom</li>
               <li>Delete/Backspace to remove</li>

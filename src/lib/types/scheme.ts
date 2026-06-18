@@ -5,6 +5,10 @@ export type SchemeNodeType =
   | 'transformer_sd'
   | 'power_ac'
   | 'junction'
+  | 'socket_outlet'
+  | 'push_button'
+  | 'switch_2way'
+  | 'motor'
 
 export interface SchemePort {
   index: number
@@ -29,6 +33,7 @@ export interface SchemeNode {
   x: number
   y: number
   label: string
+  rotation: 0 | 90 | 180 | 270
 }
 
 export interface SchemeWire {

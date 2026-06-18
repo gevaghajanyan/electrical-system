@@ -77,8 +77,19 @@ function loadFromStorage(): PanelStoreState | null {
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
+// ─── Save-status (separate from main state so saving doesn't trigger re-save) ─
+type SaveStatus = 'saved' | 'saving'
+let _saveStatus: SaveStatus = 'saved'
+const _statusListeners = new Set<() => void>()
+
+function notifySaveStatus() {
+  _statusListeners.forEach((l) => l())
+}
+
 function saveToStorage(s: PanelStoreState): void {
   if (typeof window === 'undefined') return
+  _saveStatus = 'saving'
+  notifySaveStatus()
   if (saveTimer !== null) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     try {
@@ -86,6 +97,8 @@ function saveToStorage(s: PanelStoreState): void {
     } catch {
       // quota exceeded – ignore
     }
+    _saveStatus = 'saved'
+    notifySaveStatus()
   }, 400)
 }
 
@@ -211,6 +224,13 @@ export const panelStore = {
       }
     }
     return null
+  },
+
+  // ── Save status ──
+  getSaveStatus(): SaveStatus { return _saveStatus },
+  subscribeSaveStatus(listener: () => void): () => void {
+    _statusListeners.add(listener)
+    return () => _statusListeners.delete(listener)
   },
 
   // ── Settings ──

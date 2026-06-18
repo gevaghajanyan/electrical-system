@@ -184,11 +184,14 @@ interface ElementShapeProps {
   allElements: PanelElement[]
   allConnections: Connection[]
   isSelected: boolean
+  isMultiSelected: boolean
   connectingFrom: string | null
+  onSingleSelect: (id: string) => void
+  onShiftClick: (id: string) => void
 }
 
 export function ElementShape({
-  element, railIndex, rails, allElements, allConnections, isSelected, connectingFrom,
+  element, railIndex, rails, allElements, allConnections, isSelected, isMultiSelected, connectingFrom, onSingleSelect, onShiftClick,
 }: ElementShapeProps) {
   const def = ELEMENT_DEFS_MAP.get(element.typeId)
   if (!def) return null
@@ -213,7 +216,12 @@ export function ElementShape({
 
   const handleClick = (e: KonvaEventObject<MouseEvent>) => {
     e.cancelBubble = true
-    if (!isConnecting) panelStore.selectElement(element.id)
+    if (isConnecting) return
+    if (e.evt.shiftKey) {
+      onShiftClick(element.id)
+    } else {
+      onSingleSelect(element.id)
+    }
   }
 
   const handleDragStart = (e: KonvaEventObject<DragEvent>) => {
@@ -263,6 +271,7 @@ export function ElementShape({
       height={h}
       draggable={!isConnecting}
       onClick={handleClick}
+      onMouseDown={(e: KonvaEventObject<MouseEvent>) => { e.cancelBubble = true }}
       onDblClick={(e: KonvaEventObject<MouseEvent>) => { e.cancelBubble = true }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
@@ -363,6 +372,19 @@ export function ElementShape({
           fill="#fbbf24"
           stroke="#fff"
           strokeWidth={1}
+          listening={false}
+        />
+      )}
+
+      {/* Multi-select ring */}
+      {isMultiSelected && (
+        <Rect
+          x={-2} y={-2}
+          width={w + 4} height={h + 4}
+          stroke="#3b82f6"
+          strokeWidth={2.5}
+          fill="rgba(59,130,246,0.08)"
+          cornerRadius={5}
           listening={false}
         />
       )}

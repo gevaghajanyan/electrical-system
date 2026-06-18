@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import type { Scheme } from '@/lib/types/scheme'
+import type { SchemeNodeType } from '@/lib/types/scheme'
 
 function formatRelativeTime(iso: string): string {
   try {
@@ -24,6 +25,142 @@ function formatRelativeTime(iso: string): string {
     return iso
   }
 }
+
+// ── Template definitions ──────────────────────────────────────────────────────
+
+interface SchemeTemplate {
+  id: string
+  name: string
+  description: string
+  nodes: Array<{ type: SchemeNodeType; x: number; y: number; label: string }>
+  wires: Array<{ fromNodeIndex: number; fromPortIndex: number; toNodeIndex: number; toPortIndex: number }>
+}
+
+const SCHEME_TEMPLATES: SchemeTemplate[] = [
+  {
+    id: 'tpl_switch_lamp',
+    name: 'Single Switch + Lamp',
+    description: 'Basic single switch controlling a lamp',
+    nodes: [
+      { type: 'power_ac',    x: 96,  y: 96,  label: 'AC Power' },
+      { type: 'switch_spst', x: 288, y: 120, label: 'Switch' },
+      { type: 'lamp_230',    x: 480, y: 96,  label: 'Lamp' },
+    ],
+    wires: [
+      { fromNodeIndex: 0, fromPortIndex: 0, toNodeIndex: 1, toPortIndex: 0 }, // power L → switch in
+      { fromNodeIndex: 1, fromPortIndex: 1, toNodeIndex: 2, toPortIndex: 0 }, // switch out → lamp L
+      { fromNodeIndex: 0, fromPortIndex: 1, toNodeIndex: 2, toPortIndex: 1 }, // power N → lamp N
+    ],
+  },
+  {
+    id: 'tpl_led_transformer',
+    name: 'LED with Transformer',
+    description: 'Transformer step-down circuit powering an LED',
+    nodes: [
+      { type: 'power_ac',       x: 96,  y: 96,  label: 'AC Power' },
+      { type: 'transformer_sd', x: 288, y: 96,  label: 'Transformer' },
+      { type: 'led_220',        x: 528, y: 120, label: 'LED' },
+    ],
+    wires: [
+      { fromNodeIndex: 0, fromPortIndex: 0, toNodeIndex: 1, toPortIndex: 0 }, // power L → xfmr L1
+      { fromNodeIndex: 0, fromPortIndex: 1, toNodeIndex: 1, toPortIndex: 1 }, // power N → xfmr N1
+      { fromNodeIndex: 1, fromPortIndex: 2, toNodeIndex: 2, toPortIndex: 0 }, // xfmr L2 → led +
+      { fromNodeIndex: 1, fromPortIndex: 3, toNodeIndex: 2, toPortIndex: 1 }, // xfmr N2 → led -
+    ],
+  },
+  {
+    id: 'tpl_socket',
+    name: 'Socket Circuit',
+    description: 'Simple mains socket circuit with earth',
+    nodes: [
+      { type: 'power_ac',      x: 96,  y: 96, label: 'AC Power' },
+      { type: 'socket_outlet', x: 360, y: 96, label: 'Socket' },
+    ],
+    wires: [
+      { fromNodeIndex: 0, fromPortIndex: 0, toNodeIndex: 1, toPortIndex: 0 }, // L
+      { fromNodeIndex: 0, fromPortIndex: 1, toNodeIndex: 1, toPortIndex: 1 }, // N
+      { fromNodeIndex: 0, fromPortIndex: 2, toNodeIndex: 1, toPortIndex: 2 }, // PE
+    ],
+  },
+  {
+    id: 'tpl_2way_switching',
+    name: 'Two-way Switching',
+    description: 'Two-way staircase switching circuit',
+    nodes: [
+      { type: 'power_ac',    x: 72,  y: 120, label: 'AC Power' },
+      { type: 'switch_2way', x: 240, y: 96,  label: 'Switch 1' },
+      { type: 'switch_2way', x: 432, y: 96,  label: 'Switch 2' },
+      { type: 'lamp_230',    x: 624, y: 120, label: 'Lamp' },
+    ],
+    wires: [
+      { fromNodeIndex: 0, fromPortIndex: 0, toNodeIndex: 1, toPortIndex: 0 }, // power L → sw1 common
+      { fromNodeIndex: 1, fromPortIndex: 1, toNodeIndex: 2, toPortIndex: 1 }, // sw1 A → sw2 A
+      { fromNodeIndex: 1, fromPortIndex: 2, toNodeIndex: 2, toPortIndex: 2 }, // sw1 B → sw2 B
+      { fromNodeIndex: 2, fromPortIndex: 0, toNodeIndex: 3, toPortIndex: 0 }, // sw2 common → lamp L
+      { fromNodeIndex: 0, fromPortIndex: 1, toNodeIndex: 3, toPortIndex: 1 }, // power N → lamp N
+    ],
+  },
+]
+
+// ── Template card ─────────────────────────────────────────────────────────────
+
+function TemplateCard({ template }: { template: SchemeTemplate }) {
+  function handleUseTemplate() {
+    const scheme = schemeStore.createScheme(template.name, template.description)
+
+    // addNode sets the active scheme internally; since createScheme already set it, just add nodes
+    const addedNodes: Array<{ id: string }> = []
+    for (const n of template.nodes) {
+      const node = schemeStore.addNode(n.type, n.x, n.y)
+      // Override the default label from the definition with the template's label
+      schemeStore.updateNode(node.id, { label: n.label })
+      addedNodes.push(node)
+    }
+
+    // Now add wires using the node IDs we just created
+    for (const w of template.wires) {
+      const fromNode = addedNodes[w.fromNodeIndex]
+      const toNode = addedNodes[w.toNodeIndex]
+      if (fromNode && toNode) {
+        schemeStore.addWire(fromNode.id, w.fromPortIndex, toNode.id, w.toPortIndex)
+      }
+    }
+
+    window.location.href = `/schemes/${scheme.id}`
+  }
+
+  const nodeCount = template.nodes.length
+  const wireCount = template.wires.length
+
+  return (
+    <button
+      onClick={handleUseTemplate}
+      className="group flex flex-col items-start gap-2 rounded-xl border border-zinc-200 bg-white p-4 text-left transition-all hover:border-blue-300 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800 dark:hover:border-blue-600"
+    >
+      <div className="flex w-full items-start justify-between gap-2">
+        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+          {template.name}
+        </p>
+        <svg
+          className="h-4 w-4 shrink-0 text-zinc-300 transition-colors group-hover:text-blue-400 dark:text-zinc-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">{template.description}</p>
+      <div className="flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-500">
+        <span>{nodeCount} {nodeCount === 1 ? 'component' : 'components'}</span>
+        <span>·</span>
+        <span>{wireCount} {wireCount === 1 ? 'wire' : 'wires'}</span>
+      </div>
+    </button>
+  )
+}
+
+// ── Scheme card ───────────────────────────────────────────────────────────────
 
 function SchemeCard({ scheme }: { scheme: Scheme }) {
   function handleDelete(e: React.MouseEvent) {
@@ -163,6 +300,7 @@ function NewSchemeModal({ open, onClose }: { open: boolean; onClose: () => void 
 export default function SchemesPage() {
   const { schemes } = useSchemeStore()
   const [newModalOpen, setNewModalOpen] = useState(false)
+  const [templatesOpen, setTemplatesOpen] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -186,16 +324,11 @@ export default function SchemesPage() {
       const newId = st.activeSchemeId
       if (newId) {
         schemeStore.updateScheme(newId, { name: imported.name, description: imported.description })
-        // Add nodes and wires via store for the active scheme
-        // Since createScheme already set active, we just update the whole object
-        // Use a direct state patch via a workaround — delete it and re-create properly
         schemeStore.deleteScheme(newId)
       }
       // Just add all the nodes and wires by creating from scratch
       const freshId = Date.now().toString(36) + Math.random().toString(36).slice(2)
       const fresh: Scheme = { ...imported, id: freshId }
-      // Directly set via create + bulk approach — we need to push it as a raw scheme
-      // Since schemeStore doesn't have importScheme, we add it manually to localStorage and reload
       const currentState = schemeStore.getState()
       const newState = {
         ...currentState,
@@ -236,6 +369,48 @@ export default function SchemesPage() {
           </div>
         </div>
 
+        {/* ── Templates section ─────────────────────────────────────────── */}
+        <div className="mb-8 rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+          <button
+            onClick={() => setTemplatesOpen((v) => !v)}
+            className="flex w-full items-center justify-between px-5 py-4 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="h-4 w-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Start from template
+              </span>
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
+                {SCHEME_TEMPLATES.length}
+              </span>
+            </div>
+            <svg
+              className={`h-4 w-4 text-zinc-400 transition-transform ${templatesOpen ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {templatesOpen && (
+            <div className="border-t border-zinc-100 px-5 pb-5 pt-4 dark:border-zinc-800">
+              <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                Click a template to create a new scheme pre-populated with components and wires.
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {SCHEME_TEMPLATES.map((tpl) => (
+                  <TemplateCard key={tpl.id} template={tpl} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Schemes grid ──────────────────────────────────────────────── */}
         {schemes.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-white py-24 dark:border-zinc-700 dark:bg-zinc-900">
             <svg

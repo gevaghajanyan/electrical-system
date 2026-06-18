@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
+import { useRouter } from 'next/navigation'
 import { panelStore } from '@/lib/store/panelStore'
 import { usePanelStore } from '@/lib/hooks/usePanelStore'
 import { readJsonFile } from '@/lib/utils/importExport'
+import { PANEL_TEMPLATES, createPanelFromTemplate } from '@/lib/constants/panelTemplates'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
@@ -20,6 +22,8 @@ function formatDate(iso: string): string {
     return iso
   }
 }
+
+type SortKey = 'updated' | 'name' | 'devices'
 
 function PanelCard({ panel }: { panel: Panel }) {
   const { t } = useTranslation()
@@ -44,9 +48,7 @@ function PanelCard({ panel }: { panel: Panel }) {
         onClick={() => panelStore.setActivePanel(panel.id)}
       >
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-1">
-            {panel.name}
-          </h3>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-1">{panel.name}</h3>
           <Badge variant="outline">{panel.voltage}V</Badge>
         </div>
         {panel.description && (
@@ -83,27 +85,46 @@ function PanelCard({ panel }: { panel: Panel }) {
 
 function NewPanelModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [name, setName] = useState('')
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
+  const [showTemplates, setShowTemplates] = useState(false)
   const { settings } = usePanelStore()
   const { t } = useTranslation()
+  const router = useRouter()
 
   function handleCreate() {
     if (!name.trim()) return
-    const panel = panelStore.createPanel(name.trim())
+    const template = PANEL_TEMPLATES.find((tp) => tp.id === selectedTemplate)
+    let panel
+    if (template) {
+      const base = createPanelFromTemplate(template, name.trim(), settings.defaultVoltage, settings.defaultFrequency)
+      const now = new Date().toISOString()
+      panel = panelStore.importPanel({ ...base, createdAt: now, updatedAt: now })
+    } else {
+      panel = panelStore.createPanel(name.trim())
+    }
     panelStore.setActivePanel(panel.id)
     onClose()
     setName('')
-    window.location.href = `/panels/${panel.id}`
+    setSelectedTemplate(null)
+    router.push(`/panels/${panel.id}`)
+  }
+
+  function handleClose() {
+    onClose()
+    setName('')
+    setSelectedTemplate(null)
+    setShowTemplates(false)
   }
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       title={t('panels.modal.title')}
       maxWidth="sm"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>{t('panels.modal.cancel')}</Button>
+          <Button variant="ghost" onClick={handleClose}>{t('panels.modal.cancel')}</Button>
           <Button variant="primary" onClick={handleCreate} disabled={!name.trim()}>
             {t('panels.modal.create')}
           </Button>
@@ -122,9 +143,58 @@ function NewPanelModal({ open, onClose }: { open: boolean; onClose: () => void }
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
           />
         </div>
-        <p className="text-xs text-zinc-500">
-          {t('panels.modal.defaultRailHint', { count: settings.defaultSlotCount })}
-        </p>
+
+        {/* Template selector */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowTemplates((v) => !v)}
+            className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+          >
+            <svg className={`h-3.5 w-3.5 transition-transform ${showTemplates ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            Start from a template
+          </button>
+
+          {showTemplates && (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedTemplate(null)}
+                className={`rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+                  selectedTemplate === null
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600'
+                }`}
+              >
+                <div className="font-medium">Blank</div>
+                <div className="mt-0.5 text-zinc-400">Empty panel</div>
+              </button>
+              {PANEL_TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={() => setSelectedTemplate(tpl.id)}
+                  className={`rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+                    selectedTemplate === tpl.id
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600'
+                  }`}
+                >
+                  <div className="font-medium">{tpl.icon} {tpl.name}</div>
+                  <div className="mt-0.5 text-zinc-400 line-clamp-2">{tpl.description}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {!showTemplates && (
+          <p className="text-xs text-zinc-500">
+            {t('panels.modal.defaultRailHint', { count: settings.defaultSlotCount })}
+          </p>
+        )}
       </div>
     </Modal>
   )
@@ -134,7 +204,26 @@ export default function PanelsPage() {
   const { panels } = usePanelStore()
   const { t } = useTranslation()
   const [newModalOpen, setNewModalOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('updated')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const filtered = useMemo(() => {
+    let result = [...panels]
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      result = result.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.location.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q)
+      )
+    }
+    if (sortKey === 'updated') result.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    else if (sortKey === 'name') result.sort((a, b) => a.name.localeCompare(b.name))
+    else if (sortKey === 'devices') result.sort((a, b) => b.elements.length - a.elements.length)
+    return result
+  }, [panels, search, sortKey])
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -151,12 +240,10 @@ export default function PanelsPage() {
   return (
     <div className="flex flex-col min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="flex-1 mx-auto w-full max-w-5xl px-4 py-8">
-        <div className="mb-8 flex items-end justify-between">
+        <div className="mb-6 flex items-end justify-between">
           <div>
             <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{t('panels.title')}</h1>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              {t('panels.subtitle')}
-            </p>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{t('panels.subtitle')}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
@@ -174,6 +261,37 @@ export default function PanelsPage() {
           </div>
         </div>
 
+        {panels.length > 0 && (
+          <div className="mb-5 flex items-center gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search panels…"
+                className="w-full rounded-lg border border-zinc-300 bg-white py-2 pl-9 pr-3 text-sm placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder-zinc-500"
+              />
+            </div>
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as SortKey)}
+              className="rounded-lg border border-zinc-300 bg-white py-2 px-3 text-sm text-zinc-700 focus:border-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200"
+            >
+              <option value="updated">Last modified</option>
+              <option value="name">Name A–Z</option>
+              <option value="devices">Most devices</option>
+            </select>
+            {search && (
+              <span className="text-sm text-zinc-400">
+                {filtered.length} of {panels.length}
+              </span>
+            )}
+          </div>
+        )}
+
         {panels.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-white py-24 dark:border-zinc-700 dark:bg-zinc-900">
             <svg className="h-12 w-12 text-zinc-300 dark:text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,9 +303,14 @@ export default function PanelsPage() {
               {t('panels.empty.cta')}
             </Button>
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center py-16 text-center">
+            <p className="text-sm text-zinc-400">No panels match &ldquo;{search}&rdquo;</p>
+            <button onClick={() => setSearch('')} className="mt-2 text-xs text-blue-500 hover:underline">Clear search</button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {panels.map((panel) => (
+            {filtered.map((panel) => (
               <PanelCard key={panel.id} panel={panel} />
             ))}
           </div>

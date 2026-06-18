@@ -159,12 +159,13 @@ export const schemeStore = {
       x,
       y,
       label: SCHEME_DEFS[type].label,
+      rotation: 0,
     }
     updateActiveScheme((sc) => ({ ...sc, nodes: [...sc.nodes, node] }))
     return node
   },
 
-  updateNode(nodeId: string, updates: Partial<Pick<SchemeNode, 'x' | 'y' | 'label'>>) {
+  updateNode(nodeId: string, updates: Partial<Pick<SchemeNode, 'x' | 'y' | 'label' | 'rotation'>>) {
     updateActiveScheme((sc) => ({
       ...sc,
       nodes: sc.nodes.map((n) => (n.id === nodeId ? { ...n, ...updates } : n)),
