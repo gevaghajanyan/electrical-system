@@ -5,11 +5,15 @@ import { useTranslation } from 'react-i18next'
 import type { Panel } from '@/lib/types/panel'
 import { panelStore } from '@/lib/store/panelStore'
 import { usePanelStore } from '@/lib/hooks/usePanelStore'
-import { exportToPdf, exportFullReport, exportToImage } from '@/lib/utils/pdfExport'
+import { exportToPdf, exportFullReport, exportToImage, exportToCsv } from '@/lib/utils/pdfExport'
 import { downloadJson } from '@/lib/utils/importExport'
 import { validatePanel } from '@/lib/utils/validation'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { Modal } from '@/components/ui/Modal'
+import { Input } from '@/components/ui/Input'
+import { Label } from '@/components/ui/Label'
+import { Select } from '@/components/ui/Select'
 import { RailConfigurator } from './RailConfigurator'
 import { BomModal } from './BomModal'
 import { SnapshotModal } from './SnapshotModal'
@@ -59,6 +63,35 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
   const [railConfigOpen, setRailConfigOpen] = useState(false)
   const [bomOpen, setBomOpen] = useState(false)
   const [snapshotOpen, setSnapshotOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [validationOpen, setValidationOpen] = useState(false)
+
+  // Panel metadata editor form state
+  const [metaName, setMetaName] = useState(panel.name)
+  const [metaDescription, setMetaDescription] = useState(panel.description)
+  const [metaLocation, setMetaLocation] = useState(panel.location)
+  const [metaVoltage, setMetaVoltage] = useState<230 | 400>(panel.voltage)
+  const [metaFrequency, setMetaFrequency] = useState<50 | 60>(panel.frequency)
+
+  function openSettings() {
+    setMetaName(panel.name)
+    setMetaDescription(panel.description)
+    setMetaLocation(panel.location)
+    setMetaVoltage(panel.voltage)
+    setMetaFrequency(panel.frequency)
+    setSettingsOpen(true)
+  }
+
+  function saveSettings() {
+    panelStore.updatePanel(panel.id, {
+      name: metaName,
+      description: metaDescription,
+      location: metaLocation,
+      voltage: metaVoltage,
+      frequency: metaFrequency,
+    })
+    setSettingsOpen(false)
+  }
 
   const errors = useMemo(() => validatePanel(panel), [panel])
   const errorCount = errors.filter((e) => e.severity === 'error').length
@@ -134,6 +167,16 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
           <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate max-w-xs">
             {panel.name}
           </span>
+          <button
+            onClick={openSettings}
+            title="Edit panel settings"
+            className="shrink-0 rounded p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
           {totalA > 0 && (
             <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
               {totalA}A total
@@ -165,10 +208,14 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
             </span>
           )}
           {errorCount > 0 && (
-            <Badge variant="error">{t('toolbar.errors', { count: errorCount })}</Badge>
+            <button onClick={() => setValidationOpen(true)} className="shrink-0">
+              <Badge variant="error">{t('toolbar.errors', { count: errorCount })}</Badge>
+            </button>
           )}
           {warnCount > 0 && errorCount === 0 && (
-            <Badge variant="warning">{t('toolbar.warnings', { count: warnCount })}</Badge>
+            <button onClick={() => setValidationOpen(true)} className="shrink-0">
+              <Badge variant="warning">{t('toolbar.warnings', { count: warnCount })}</Badge>
+            </button>
           )}
           {errorCount === 0 && warnCount === 0 && (
             <Badge variant="success">{t('toolbar.valid')}</Badge>
@@ -195,6 +242,12 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
 
           <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
 
+          <Button size="sm" variant="ghost" onClick={() => exportToCsv(panel)} title="Export cable schedule as CSV">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            CSV
+          </Button>
           <Button size="sm" variant="ghost" onClick={onImport} title="Import panel JSON">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -231,6 +284,117 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
       <RailConfigurator open={railConfigOpen} onClose={() => setRailConfigOpen(false)} />
       <BomModal panel={panel} open={bomOpen} onClose={() => setBomOpen(false)} />
       <SnapshotModal open={snapshotOpen} onClose={() => setSnapshotOpen(false)} panel={panel} />
+
+      {/* Panel Metadata Editor Modal */}
+      <Modal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        title="Panel Settings"
+        maxWidth="sm"
+        footer={
+          <>
+            <Button size="sm" variant="outline" onClick={() => setSettingsOpen(false)}>Cancel</Button>
+            <Button size="sm" variant="primary" onClick={saveSettings}>Save</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="meta-name" required>Name</Label>
+            <Input
+              id="meta-name"
+              value={metaName}
+              onChange={(e) => setMetaName(e.target.value)}
+              placeholder="Panel name"
+            />
+          </div>
+          <div>
+            <Label htmlFor="meta-description">Description</Label>
+            <Input
+              id="meta-description"
+              value={metaDescription}
+              onChange={(e) => setMetaDescription(e.target.value)}
+              placeholder="Optional description"
+            />
+          </div>
+          <div>
+            <Label htmlFor="meta-location">Location</Label>
+            <Input
+              id="meta-location"
+              value={metaLocation}
+              onChange={(e) => setMetaLocation(e.target.value)}
+              placeholder="e.g. Main Building, Floor 2"
+            />
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <Label htmlFor="meta-voltage">Voltage</Label>
+              <Select
+                id="meta-voltage"
+                value={String(metaVoltage)}
+                onChange={(e) => setMetaVoltage(Number(e.target.value) as 230 | 400)}
+              >
+                <option value="230">230V</option>
+                <option value="400">400V</option>
+              </Select>
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="meta-frequency">Frequency</Label>
+              <Select
+                id="meta-frequency"
+                value={String(metaFrequency)}
+                onChange={(e) => setMetaFrequency(Number(e.target.value) as 50 | 60)}
+              >
+                <option value="50">50Hz</option>
+                <option value="60">60Hz</option>
+              </Select>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Validation Errors Modal */}
+      <Modal
+        open={validationOpen}
+        onClose={() => setValidationOpen(false)}
+        title="Validation Results"
+        maxWidth="md"
+      >
+        {errors.length === 0 ? (
+          <p className="text-sm text-zinc-500">No issues found.</p>
+        ) : (
+          <ul className="space-y-2">
+            {[...errors]
+              .sort((a, b) => {
+                if (a.severity === b.severity) return 0
+                return a.severity === 'error' ? -1 : 1
+              })
+              .map((err, i) => {
+                let source = 'Panel'
+                if (err.elementId) {
+                  source = panel.elements.find((e) => e.id === err.elementId)?.label || err.elementId
+                } else if (err.railId) {
+                  source = panel.rails.find((r) => r.id === err.railId)?.label || err.railId
+                }
+                const isError = err.severity === 'error'
+                return (
+                  <li
+                    key={i}
+                    className={[
+                      'flex items-start gap-2 rounded-md px-3 py-2 text-sm',
+                      isError
+                        ? 'bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-300'
+                        : 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+                    ].join(' ')}
+                  >
+                    <span className="shrink-0 font-semibold">{source}:</span>
+                    <span>{err.message}</span>
+                  </li>
+                )
+              })}
+          </ul>
+        )}
+      </Modal>
     </>
   )
 }

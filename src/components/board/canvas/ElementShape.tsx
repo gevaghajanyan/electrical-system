@@ -185,13 +185,16 @@ interface ElementShapeProps {
   allConnections: Connection[]
   isSelected: boolean
   isMultiSelected: boolean
+  isDimmed?: boolean
   connectingFrom: string | null
   onSingleSelect: (id: string) => void
   onShiftClick: (id: string) => void
+  onHover?: (id: string, clientX: number, clientY: number) => void
+  onHoverEnd?: () => void
 }
 
 export function ElementShape({
-  element, railIndex, rails, allElements, allConnections, isSelected, isMultiSelected, connectingFrom, onSingleSelect, onShiftClick,
+  element, railIndex, rails, allElements, allConnections, isSelected, isMultiSelected, isDimmed = false, connectingFrom, onSingleSelect, onShiftClick, onHover, onHoverEnd,
 }: ElementShapeProps) {
   const def = ELEMENT_DEFS_MAP.get(element.typeId)
   if (!def) return null
@@ -269,10 +272,19 @@ export function ElementShape({
       y={y}
       width={w}
       height={h}
+      opacity={isDimmed ? 0.2 : 1}
       draggable={!isConnecting}
       onClick={handleClick}
       onMouseDown={(e: KonvaEventObject<MouseEvent>) => { e.cancelBubble = true }}
       onDblClick={(e: KonvaEventObject<MouseEvent>) => { e.cancelBubble = true }}
+      onMouseEnter={(e: KonvaEventObject<MouseEvent>) => {
+        const container = e.target.getStage()?.container()
+        if (container) {
+          const rect = container.getBoundingClientRect()
+          onHover?.(element.id, e.evt.clientX - rect.left, e.evt.clientY - rect.top)
+        }
+      }}
+      onMouseLeave={() => onHoverEnd?.()}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >

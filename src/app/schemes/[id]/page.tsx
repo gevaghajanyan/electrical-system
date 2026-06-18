@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState, useEffect } from 'react'
+import { use, useState, useEffect, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { schemeStore } from '@/lib/store/schemeStore'
 import { useSchemeStore } from '@/lib/hooks/useSchemeStore'
@@ -21,11 +21,55 @@ export default function SchemeEditorPage({ params }: PageProps) {
   const { panels } = usePanelStore()
   const [zoom, setZoom] = useState(1)
 
+  // Track undo/redo availability via the main store subscription
+  const canUndo = useSyncExternalStore(
+    schemeStore.subscribe.bind(schemeStore),
+    () => schemeStore.canUndo(),
+    () => false,
+  )
+  const canRedo = useSyncExternalStore(
+    schemeStore.subscribe.bind(schemeStore),
+    () => schemeStore.canRedo(),
+    () => false,
+  )
+
+  // Save status indicator
+  const saveStatus = useSyncExternalStore(
+    schemeStore.subscribeSaveStatus,
+    schemeStore.getSaveStatus,
+    () => 'saved' as const,
+  )
+
   useEffect(() => {
     if (schemeStore.getState().activeSchemeId !== id) {
       schemeStore.setActiveScheme(id)
     }
   }, [id])
+
+  // Keyboard shortcuts: Ctrl/Cmd+Z (undo), Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y (redo)
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT'
+      ) {
+        return
+      }
+      const mod = e.ctrlKey || e.metaKey
+      if (!mod) return
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        schemeStore.undo()
+      } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+        e.preventDefault()
+        schemeStore.redo()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const scheme = schemes.find((s) => s.id === id)
 
@@ -116,6 +160,41 @@ export default function SchemeEditorPage({ params }: PageProps) {
             </svg>
           </Button>
         </div>
+
+        <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
+
+        {/* Undo / Redo */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => schemeStore.undo()}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+            className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${!canUndo ? 'opacity-30 cursor-not-allowed' : ''}`}
+          >
+            <svg className="h-3.5 w-3.5 text-zinc-600 dark:text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 010 16H3m0-16l4-4m-4 4l4 4" />
+            </svg>
+          </button>
+          <button
+            onClick={() => schemeStore.redo()}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Shift+Z)"
+            className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${!canRedo ? 'opacity-30 cursor-not-allowed' : ''}`}
+          >
+            <svg className="h-3.5 w-3.5 text-zinc-600 dark:text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a8 8 0 000 16h10m0-16l-4-4m4 4l-4 4" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
+
+        {/* Save status */}
+        {saveStatus === 'saving' ? (
+          <span className="text-xs text-blue-400">Saving…</span>
+        ) : (
+          <span className="text-xs text-zinc-400">Saved</span>
+        )}
 
         <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
 

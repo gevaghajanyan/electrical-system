@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ElementCategory, ElementTypeId } from '@/lib/types/panel'
 import type { ElementDef } from '@/lib/constants/elementDefs'
-import { ELEMENT_DEFS } from '@/lib/constants/elementDefs'
+import { ELEMENT_DEFS, ELEMENT_DEFS_MAP } from '@/lib/constants/elementDefs'
 import { useActivePanel } from '@/lib/hooks/usePanelStore'
 import { panelStore } from '@/lib/store/panelStore'
+import { recentElementsStore } from '@/lib/store/recentElementsStore'
 import { hasSlotCollision } from '@/lib/utils/slotUtils'
 
 const CATEGORY_ORDER: ElementCategory[] = ['protection', 'switching', 'distribution', 'accessory']
@@ -78,6 +79,14 @@ export function ElementPalette({ onDragStart, className = '' }: ElementPalettePr
   const [search, setSearch] = useState('')
   const [collapsed, setCollapsed] = useState<Set<ElementCategory>>(new Set())
   const activePanel = useActivePanel()
+  const recentTypeIds = useSyncExternalStore(
+    recentElementsStore.subscribe,
+    recentElementsStore.getRecents,
+    () => [] as string[]
+  )
+  const recentDefs = recentTypeIds
+    .map((id) => ELEMENT_DEFS_MAP.get(id as ElementTypeId))
+    .filter((d): d is ElementDef => !!d)
 
   function handleAdd(typeId: string) {
     if (!activePanel) return
@@ -95,10 +104,16 @@ export function ElementPalette({ onDragStart, className = '' }: ElementPalettePr
             notes: '',
             properties: { ...def.defaultProperties },
           })
+          recentElementsStore.push(typeId)
           return
         }
       }
     }
+  }
+
+  function handleDragStartTracked(typeId: string) {
+    recentElementsStore.push(typeId)
+    onDragStart(typeId)
   }
 
   function toggleCategory(cat: ElementCategory) {
@@ -142,6 +157,25 @@ export function ElementPalette({ onDragStart, className = '' }: ElementPalettePr
 
       {/* Scrollable category grid */}
       <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-2">
+        {!search && recentDefs.length > 0 && (
+          <div>
+            <div className="px-1 py-0.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                Recent
+              </span>
+            </div>
+            <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+              {recentDefs.map((def) => (
+                <PaletteTile
+                  key={def.id}
+                  def={def}
+                  onDragStart={handleDragStartTracked}
+                  onAdd={handleAdd}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         {CATEGORY_ORDER.map((cat) => {
           const defs = grouped[cat]
           if (defs.length === 0) return null
@@ -177,7 +211,7 @@ export function ElementPalette({ onDragStart, className = '' }: ElementPalettePr
                     <PaletteTile
                       key={def.id}
                       def={def}
-                      onDragStart={onDragStart}
+                      onDragStart={handleDragStartTracked}
                       onAdd={handleAdd}
                     />
                   ))}

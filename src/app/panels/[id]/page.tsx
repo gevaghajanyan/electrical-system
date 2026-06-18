@@ -30,6 +30,8 @@ export default function PanelEditorPage({
   const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set())
   const [shortcutModalOpen, setShortcutModalOpen] = useState(false)
   const [annotationMode, setAnnotationMode] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -69,7 +71,19 @@ export default function PanelEditorPage({
       if (pasted) panelStore.selectElement(pasted.id)
       return
     }
-    // Duplicate (Cmd+D)
+    // Bulk duplicate multi-selected (Cmd+D)
+    if (isMod && e.key === 'd' && multiSelectedIds.size > 1) {
+      e.preventDefault()
+      const newIds = new Set<string>()
+      multiSelectedIds.forEach(elId => {
+        panelStore.copyElement(elId)
+        const pasted = panelStore.pasteElement()
+        if (pasted) newIds.add(pasted.id)
+      })
+      if (newIds.size > 0) setMultiSelectedIds(newIds)
+      return
+    }
+    // Duplicate single element (Cmd+D)
     if (isMod && e.key === 'd' && selectedElementId) {
       e.preventDefault()
       panelStore.copyElement(selectedElementId)
@@ -84,12 +98,23 @@ export default function PanelEditorPage({
       setMultiSelectedIds(new Set())
       return
     }
+    // Find/highlight (Cmd+F)
+    if (isMod && e.key === 'f') {
+      e.preventDefault()
+      searchInputRef.current?.focus()
+      return
+    }
+    // Clear search (Esc when search active)
+    if (e.key === 'Escape' && searchQuery) {
+      setSearchQuery('')
+      return
+    }
     // Show shortcuts
     if (e.key === '?') {
       setShortcutModalOpen(true)
       return
     }
-  }, [selectedElementId, multiSelectedIds])
+  }, [selectedElementId, multiSelectedIds, searchQuery])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
@@ -226,7 +251,7 @@ export default function PanelEditorPage({
 
         {/* Canvas / Schematic (main area) */}
         <div className="relative flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
-          {/* View tabs */}
+          {/* View tabs + search */}
           <div className="shrink-0 flex items-center gap-0.5 px-2 py-1.5 border-b border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
             {(['canvas', 'schematic'] as const).map((v) => (
               <button
@@ -241,6 +266,25 @@ export default function PanelEditorPage({
                 {v === 'canvas' ? t('editor.layout') : t('editor.schematic')}
               </button>
             ))}
+            {view === 'canvas' && (
+              <div className="ml-auto flex items-center gap-1 relative">
+                <svg className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') { setSearchQuery(''); (e.target as HTMLInputElement).blur() } }}
+                  placeholder="Find element… (⌘F)"
+                  className="w-40 rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 pl-6 pr-2 py-0.5 text-[11px] text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs">✕</button>
+                )}
+              </div>
+            )}
           </div>
 
           {view === 'canvas' ? (
@@ -252,6 +296,7 @@ export default function PanelEditorPage({
               selectedElementIds={multiSelectedIds}
               onMultiSelectChange={setMultiSelectedIds}
               annotationMode={annotationMode}
+              searchQuery={searchQuery}
             />
           ) : (
             <SchematicView panel={panel} />
@@ -261,8 +306,45 @@ export default function PanelEditorPage({
           {view === 'canvas' && multiSelectedIds.size > 1 && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-900/95 px-4 py-2 shadow-xl backdrop-blur-sm">
               <span className="text-sm font-medium text-white">
-                {multiSelectedIds.size} elements selected
+                {multiSelectedIds.size} selected
               </span>
+              {panel.rails.length > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-zinc-400">Move to</span>
+                  <select
+                    className="rounded-lg bg-zinc-800 border border-zinc-600 px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-400"
+                    defaultValue=""
+                    onChange={(e) => {
+                      if (!e.target.value) return
+                      panelStore.bulkMoveToRail(Array.from(multiSelectedIds), e.target.value)
+                      setMultiSelectedIds(new Set())
+                      e.target.value = ''
+                    }}
+                  >
+                    <option value="" disabled>Rail…</option>
+                    {panel.rails.map((r) => (
+                      <option key={r.id} value={r.id}>{r.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  const newIds = new Set<string>()
+                  multiSelectedIds.forEach(elId => {
+                    panelStore.copyElement(elId)
+                    const pasted = panelStore.pasteElement()
+                    if (pasted) newIds.add(pasted.id)
+                  })
+                  if (newIds.size > 0) setMultiSelectedIds(newIds)
+                }}
+                className="flex items-center gap-1.5 rounded-lg bg-zinc-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-zinc-600"
+              >
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Duplicate
+              </button>
               <button
                 onClick={() => {
                   multiSelectedIds.forEach(id => panelStore.deleteElement(id))

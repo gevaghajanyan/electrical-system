@@ -19,6 +19,34 @@ export interface SchemeStoreState {
 
 type Listener = () => void
 
+// ─── Undo / Redo ─────────────────────────────────────────────────────────────
+type DataSnapshot = { schemes: Scheme[] }
+
+const MAX_HISTORY = 50
+const undoStack: DataSnapshot[] = []
+const redoStack: DataSnapshot[] = []
+
+function snapData(): DataSnapshot {
+  return { schemes: JSON.parse(JSON.stringify(state.schemes)) as Scheme[] }
+}
+
+function pushUndo(): void {
+  undoStack.push(snapData())
+  if (undoStack.length > MAX_HISTORY) undoStack.shift()
+  redoStack.length = 0
+}
+
+// ─── Save status ──────────────────────────────────────────────────────────────
+export type SaveStatus = 'saved' | 'saving'
+
+let _saveStatus: SaveStatus = 'saved'
+const _statusListeners = new Set<() => void>()
+
+function notifySaveStatus(): void {
+  _statusListeners.forEach((l) => l())
+}
+
+// ─── Storage ──────────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'electrical-schemes-v1'
 
 function loadFromStorage(): SchemeStoreState | null {
@@ -37,12 +65,16 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
 function saveToStorage(s: SchemeStoreState): void {
   if (typeof window === 'undefined') return
   if (saveTimer !== null) clearTimeout(saveTimer)
+  _saveStatus = 'saving'
+  notifySaveStatus()
   saveTimer = setTimeout(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(s))
     } catch {
       // quota exceeded – ignore
     }
+    _saveStatus = 'saved'
+    notifySaveStatus()
   }, 400)
 }
 
@@ -153,6 +185,7 @@ export const schemeStore = {
 
   // ── Node CRUD ──
   addNode(type: SchemeNodeType, x: number, y: number): SchemeNode {
+    pushUndo()
     const node: SchemeNode = {
       id: uid(),
       type,
@@ -166,6 +199,7 @@ export const schemeStore = {
   },
 
   linkNodeToPanel(nodeId: string, panelElementId: string | null): void {
+    pushUndo()
     updateActiveScheme((sc) => ({
       ...sc,
       nodes: sc.nodes.map((n) =>
@@ -177,6 +211,7 @@ export const schemeStore = {
   },
 
   updateNode(nodeId: string, updates: Partial<Pick<SchemeNode, 'x' | 'y' | 'label' | 'rotation'>>) {
+    pushUndo()
     updateActiveScheme((sc) => ({
       ...sc,
       nodes: sc.nodes.map((n) => (n.id === nodeId ? { ...n, ...updates } : n)),
@@ -184,6 +219,7 @@ export const schemeStore = {
   },
 
   deleteNode(nodeId: string) {
+    pushUndo()
     updateActiveScheme((sc) => ({
       ...sc,
       nodes: sc.nodes.filter((n) => n.id !== nodeId),
@@ -225,6 +261,7 @@ export const schemeStore = {
       if (dup) return null
     }
 
+    pushUndo()
     const wire: SchemeWire = {
       id: uid(),
       fromNodeId,
@@ -238,6 +275,7 @@ export const schemeStore = {
   },
 
   updateWire(wireId: string, updates: { label: string }) {
+    pushUndo()
     updateActiveScheme((sc) => ({
       ...sc,
       wires: sc.wires.map((w) => (w.id === wireId ? { ...w, ...updates } : w)),
@@ -245,6 +283,7 @@ export const schemeStore = {
   },
 
   deleteWire(wireId: string) {
+    pushUndo()
     updateActiveScheme((sc) => ({
       ...sc,
       wires: sc.wires.filter((w) => w.id !== wireId),
@@ -306,5 +345,40 @@ export const schemeStore = {
     const scheme = state.schemes.find((sc) => sc.id === id)
     if (!scheme) return '{}'
     return JSON.stringify(scheme, null, 2)
+  },
+
+  // ── Undo / Redo ──
+  canUndo(): boolean {
+    return undoStack.length > 0
+  },
+
+  canRedo(): boolean {
+    return redoStack.length > 0
+  },
+
+  undo(): void {
+    const snap = undoStack.pop()
+    if (!snap) return
+    redoStack.push(snapData())
+    if (redoStack.length > MAX_HISTORY) redoStack.shift()
+    setState((s) => ({ ...s, schemes: snap.schemes }))
+  },
+
+  redo(): void {
+    const snap = redoStack.pop()
+    if (!snap) return
+    undoStack.push(snapData())
+    if (undoStack.length > MAX_HISTORY) undoStack.shift()
+    setState((s) => ({ ...s, schemes: snap.schemes }))
+  },
+
+  // ── Save status ──
+  getSaveStatus(): SaveStatus {
+    return _saveStatus
+  },
+
+  subscribeSaveStatus(listener: () => void): () => void {
+    _statusListeners.add(listener)
+    return () => _statusListeners.delete(listener)
   },
 }

@@ -514,6 +514,34 @@ export const panelStore = {
     })
   },
 
+  // ── Bulk operations ──
+  bulkMoveToRail(elementIds: string[], targetRailId: string): void {
+    const panel = getActivePanel()
+    if (!panel) return
+    if (!panel.rails.find((r) => r.id === targetRailId)) return
+    pushUndo()
+    updateActivePanel((p) => {
+      const toMove = elementIds
+        .map((id) => p.elements.find((e) => e.id === id))
+        .filter((e): e is PanelElement => !!e)
+        .sort((a, b) => a.slotStart - b.slotStart)
+      let cursor = 0
+      const movedMap = new Map<string, number>()
+      for (const el of toMove) {
+        movedMap.set(el.id, cursor)
+        cursor += el.slotWidth
+      }
+      return {
+        ...p,
+        elements: p.elements.map((e) =>
+          movedMap.has(e.id)
+            ? { ...e, railId: targetRailId, slotStart: movedMap.get(e.id)! }
+            : e
+        ),
+      }
+    })
+  },
+
   // ── Annotation CRUD ──
   addAnnotation(x: number, y: number, text: string): Annotation {
     const annotation: Annotation = { id: uid(), x, y, text }

@@ -11,6 +11,7 @@ import {
 import { ELEMENT_DEFS_MAP } from '@/lib/constants/elementDefs'
 import { panelStore } from '@/lib/store/panelStore'
 import { usePanelStore } from '@/lib/hooks/usePanelStore'
+import { useIsDark } from '@/lib/hooks/useIsDark'
 import { hasSlotCollision, isWithinRail } from '@/lib/utils/slotUtils'
 import { RailRow } from './canvas/RailRow'
 import { ElementShape } from './canvas/ElementShape'
@@ -49,12 +50,14 @@ interface PanelCanvasProps {
   selectedElementIds: Set<string>
   onMultiSelectChange: (ids: Set<string>) => void
   annotationMode: boolean
+  searchQuery?: string
 }
 
-export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', selectedElementIds, onMultiSelectChange, annotationMode }: PanelCanvasProps) {
+export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', selectedElementIds, onMultiSelectChange, annotationMode, searchQuery = '' }: PanelCanvasProps) {
   const stageRef = useRef<Konva.Stage | null>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const { zoom, pan, selectedElementId, selectedConnectionId, selectedAnnotationId, connectingFrom } = usePanelStore()
+  const isDark = useIsDark()
   const [containerSize, setContainerSize] = useState({ w: 800, h: 600 })
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [canvasMousePos, setCanvasMousePos] = useState({ x: 0, y: 0 })
@@ -62,6 +65,7 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
   const [rubberBand, setRubberBand] = useState<RubberBand | null>(null)
   const rbRef = useRef<RubberBand | null>(null)
   const wasRubberBandingRef = useRef(false)
+  const [tooltip, setTooltip] = useState<{ id: string; x: number; y: number } | null>(null)
 
   // Observe container size for Stage dimensions
   useEffect(() => {
@@ -313,6 +317,30 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
           >
             −
           </button>
+          <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
+          <button
+            onClick={() => {
+              const PAD = 32
+              const newZoom = Math.min(
+                (containerSize.w - PAD * 2) / canvasW,
+                (containerSize.h - PAD * 2) / canvasH,
+                2
+              )
+              const scaledW = canvasW * newZoom
+              const scaledH = canvasH * newZoom
+              panelStore.setZoom(newZoom)
+              panelStore.setPan({
+                x: (containerSize.w - scaledW) / 2,
+                y: (containerSize.h - scaledH) / 2,
+              })
+            }}
+            title="Fit to view"
+            className="w-6 h-6 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+          </button>
         </div>
 
         {/* Connecting mode banner */}
@@ -343,11 +371,11 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
           <Layer>
             <Group x={pan.x} y={pan.y} scaleX={zoom} scaleY={zoom}>
               {/* Panel background */}
-              <Rect x={0} y={0} width={canvasW} height={canvasH} fill="#ffffff" />
+              <Rect x={0} y={0} width={canvasW} height={canvasH} fill={isDark ? '#18181b' : '#ffffff'} />
               <Rect
                 x={0.5} y={0.5}
                 width={canvasW - 1} height={canvasH - 1}
-                stroke="#d1d5db" strokeWidth={1}
+                stroke={isDark ? '#3f3f46' : '#d1d5db'} strokeWidth={1}
                 fill="transparent"
                 listening={false}
               />
@@ -361,6 +389,7 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
                   elements={panel.elements}
                   draggingTypeId={draggingTypeId}
                   dropHighlight={dropHighlightForRail(rail.id)}
+                  isDark={isDark}
                 />
               ))}
 
@@ -375,30 +404,37 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
               />
 
               {/* Elements */}
-              {panel.elements.map((element) => (
-                <ElementShape
-                  key={element.id}
-                  element={element}
-                  railIndex={railIndexMap.get(element.railId) ?? 0}
-                  rails={panel.rails}
-                  allElements={panel.elements}
-                  allConnections={panel.connections}
-                  isSelected={element.id === selectedElementId}
-                  isMultiSelected={selectedElementIds.has(element.id)}
-                  connectingFrom={connectingFrom}
-                  onSingleSelect={(id) => {
-                    panelStore.selectElement(id)
-                    if (selectedElementIds.size > 0) onMultiSelectChange(new Set())
-                  }}
-                  onShiftClick={(id) => {
-                    const next = new Set(selectedElementIds)
-                    if (next.has(id)) next.delete(id)
-                    else next.add(id)
-                    onMultiSelectChange(next)
-                    panelStore.selectElement(null)
-                  }}
-                />
-              ))}
+              {panel.elements.map((element) => {
+                const q = searchQuery.toLowerCase().trim()
+                const isDimmed = q.length > 0 && !element.label.toLowerCase().includes(q) && !element.typeId.toLowerCase().includes(q)
+                return (
+                  <ElementShape
+                    key={element.id}
+                    element={element}
+                    railIndex={railIndexMap.get(element.railId) ?? 0}
+                    rails={panel.rails}
+                    allElements={panel.elements}
+                    allConnections={panel.connections}
+                    isSelected={element.id === selectedElementId}
+                    isMultiSelected={selectedElementIds.has(element.id)}
+                    connectingFrom={connectingFrom}
+                    isDimmed={isDimmed}
+                    onSingleSelect={(id) => {
+                      panelStore.selectElement(id)
+                      if (selectedElementIds.size > 0) onMultiSelectChange(new Set())
+                    }}
+                    onShiftClick={(id) => {
+                      const next = new Set(selectedElementIds)
+                      if (next.has(id)) next.delete(id)
+                      else next.add(id)
+                      onMultiSelectChange(next)
+                      panelStore.selectElement(null)
+                    }}
+                    onHover={(id, x, y) => setTooltip({ id, x, y })}
+                    onHoverEnd={() => setTooltip(null)}
+                  />
+                )
+              })}
 
               {/* Annotations */}
               {panel.annotations.map((ann) => {
@@ -481,6 +517,38 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
             </div>
           </div>
         )}
+
+        {/* Element hover tooltip */}
+        {tooltip && (() => {
+          const el = panel.elements.find((e) => e.id === tooltip.id)
+          const def = el ? ELEMENT_DEFS_MAP.get(el.typeId) : null
+          if (!el || !def) return null
+          const p = el.properties
+          let spec = ''
+          if (p.kind === 'mcb') spec = `${p.curve}${p.rating}A / ${p.breakingCapacity}kA`
+          else if (p.kind === 'rcbo') spec = `${p.curve}${p.rating}A / ${p.sensitivity}mA`
+          else if (p.kind === 'rcd') spec = `${p.rating}A / ${p.sensitivity}mA`
+          else if (p.kind === 'isolator') spec = `${p.rating}A`
+          else if (p.kind === 'voltage_relay') spec = `${p.minVoltage}–${p.maxVoltage}V`
+          const tx = Math.min(tooltip.x + 12, containerSize.w - 180)
+          const ty = Math.max(tooltip.y - 8, 0)
+          return (
+            <div
+              className="absolute z-30 pointer-events-none rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900 shadow-lg px-3 py-2 max-w-44"
+              style={{ left: tx, top: ty }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="inline-flex items-center justify-center h-5 w-5 rounded text-[9px] font-bold shrink-0" style={{ backgroundColor: def.color, color: def.textColor }}>
+                  {def.shortLabel}
+                </span>
+                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">{el.label || def.label}</span>
+              </div>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{def.label}</p>
+              {spec && <p className="text-[10px] font-medium text-zinc-700 dark:text-zinc-300 mt-0.5">{spec}</p>}
+              {el.notes && <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-2">{el.notes}</p>}
+            </div>
+          )
+        })()}
       </div>
 
       <DragPreviewLayer draggingTypeId={draggingTypeId} mousePos={mousePos} />

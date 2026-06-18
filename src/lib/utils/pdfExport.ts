@@ -170,6 +170,50 @@ function openPrintWindow(panel: Panel, imageDataUrl: string, includeBom: boolean
   printWindow.document.close()
 }
 
+export function exportToCsv(panel: Panel): void {
+  const railOrder = new Map<string, number>(panel.rails.map((r, i) => [r.id, i]))
+  const sorted = [...panel.elements].sort((a, b) => {
+    const ri = (railOrder.get(a.railId) ?? 0) - (railOrder.get(b.railId) ?? 0)
+    if (ri !== 0) return ri
+    return a.slotStart - b.slotStart
+  })
+
+  function csvVal(s: string): string {
+    return `"${s.replace(/"/g, '""')}"`
+  }
+
+  const headers = ['#', 'Label', 'Type', 'Rail', 'Slot', 'Rating/Spec', 'Notes']
+  const rows: string[][] = sorted.map((el, i) => {
+    const def = ELEMENT_DEFS_MAP.get(el.typeId)
+    const typeLabel = def ? def.label : el.typeId
+    const rail = panel.rails.find((r) => r.id === el.railId)
+    const railLabel = rail ? rail.label : el.railId
+    return [
+      String(i + 1),
+      el.label,
+      typeLabel,
+      railLabel,
+      String(el.slotStart + 1),
+      getRatingLabel(el),
+      el.notes,
+    ]
+  })
+
+  const csvContent = [headers, ...rows]
+    .map((row) => row.map(csvVal).join(','))
+    .join('\r\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${panel.name.replace(/\s+/g, '_')}_cable_schedule.csv`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
 export function exportToImage(panel: Panel, format: 'png' | 'jpeg' = 'png'): void {
   const renderOpts: RenderOptions = {
     scale: 1, showGrid: true, showLabels: true, showPorts: false,
