@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { Panel } from '@/lib/types/panel'
 import { panelStore } from '@/lib/store/panelStore'
 import { usePanelStore } from '@/lib/hooks/usePanelStore'
-import { exportToPdf, exportFullReport, exportToImage, exportToCsv } from '@/lib/utils/pdfExport'
+import { exportToPdf, exportFullReport, exportToImage, exportToCsv, exportPanelSchedule } from '@/lib/utils/pdfExport'
 import { downloadJson } from '@/lib/utils/importExport'
 import { validatePanel } from '@/lib/utils/validation'
 import { Button } from '@/components/ui/Button'
@@ -65,6 +65,7 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
   const [snapshotOpen, setSnapshotOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [validationOpen, setValidationOpen] = useState(false)
+  const [loadOpen, setLoadOpen] = useState(false)
 
   // Panel metadata editor form state
   const [metaName, setMetaName] = useState(panel.name)
@@ -225,6 +226,13 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
         {/* Right: BOM + export / import */}
         <div className="flex items-center gap-1">
           <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
+          <Button size="sm" variant="ghost" onClick={() => setLoadOpen(true)} title="Load calculation">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Load
+          </Button>
+
           <Button size="sm" variant="ghost" onClick={() => setSnapshotOpen(true)} title="Snapshots">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -242,6 +250,12 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
 
           <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
 
+          <Button size="sm" variant="ghost" onClick={() => exportPanelSchedule(panel)} title="Export A4 panel schedule PDF">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Schedule
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => exportToCsv(panel)} title="Export cable schedule as CSV">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -351,6 +365,49 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
             </div>
           </div>
         </div>
+      </Modal>
+
+      {/* Load Calculation Modal */}
+      <Modal
+        open={loadOpen}
+        onClose={() => setLoadOpen(false)}
+        title="Load Calculation"
+        maxWidth="md"
+      >
+        {(() => {
+          const { totalA, railLoads } = computeLoadSummary(panel)
+          const maxRailA = Math.max(...railLoads.map((r) => r.totalA), 1)
+          return (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                {railLoads.map((rail) => (
+                  <div key={rail.label}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{rail.label || '(unnamed)'}</span>
+                      <span className="text-sm font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">{rail.totalA}A</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                      <div
+                        className="h-2 rounded-full transition-all"
+                        style={{
+                          width: `${(rail.totalA / maxRailA) * 100}%`,
+                          background: rail.totalA > 100 ? '#ef4444' : rail.totalA > 63 ? '#f59e0b' : '#3b82f6',
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="border-t border-zinc-200 dark:border-zinc-700 pt-3 flex items-center justify-between">
+                <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Total rated load</span>
+                <span className="text-lg font-bold tabular-nums text-zinc-900 dark:text-zinc-100">{totalA}A</span>
+              </div>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                Sum of current ratings. Diversity factors and demand calculations are not applied.
+              </p>
+            </div>
+          )
+        })()}
       </Modal>
 
       {/* Validation Errors Modal */}

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { schemeStore } from '@/lib/store/schemeStore'
 import { useSchemeStore } from '@/lib/hooks/useSchemeStore'
 import { Button } from '@/components/ui/Button'
@@ -105,6 +106,8 @@ const SCHEME_TEMPLATES: SchemeTemplate[] = [
 // ── Template card ─────────────────────────────────────────────────────────────
 
 function TemplateCard({ template }: { template: SchemeTemplate }) {
+  const router = useRouter()
+
   function handleUseTemplate() {
     const scheme = schemeStore.createScheme(template.name, template.description)
 
@@ -126,7 +129,7 @@ function TemplateCard({ template }: { template: SchemeTemplate }) {
       }
     }
 
-    window.location.href = `/schemes/${scheme.id}`
+    router.push(`/schemes/${scheme.id}`)
   }
 
   const nodeCount = template.nodes.length
@@ -228,6 +231,7 @@ function SchemeCard({ scheme }: { scheme: Scheme }) {
 }
 
 function NewSchemeModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
 
@@ -237,7 +241,7 @@ function NewSchemeModal({ open, onClose }: { open: boolean; onClose: () => void 
     onClose()
     setName('')
     setDescription('')
-    window.location.href = `/schemes/${scheme.id}`
+    router.push(`/schemes/${scheme.id}`)
   }
 
   function handleClose() {

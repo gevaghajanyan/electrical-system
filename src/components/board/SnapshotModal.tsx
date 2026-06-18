@@ -26,7 +26,6 @@ export function SnapshotModal({ open, onClose, panel }: SnapshotModalProps) {
   const snapshots = useSyncExternalStore(
     snapshotStore.subscribe,
     () => snapshotStore.getSnapshots(panel.id),
-    () => []
   )
   const [name, setName] = useState('')
 

@@ -28,14 +28,24 @@ function saveToStorage(snapshots: Snapshot[]): void {
 
 let _snapshots: Snapshot[] = loadFromStorage()
 const _listeners = new Set<() => void>()
+const _cache = new Map<string, Snapshot[]>()
 
 function notify() {
+  _cache.clear()
   _listeners.forEach((l) => l())
 }
 
 export const snapshotStore = {
   getSnapshots(panelId: string): Snapshot[] {
-    return _snapshots.filter((s) => s.panelId === panelId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    if (!_cache.has(panelId)) {
+      _cache.set(
+        panelId,
+        _snapshots
+          .filter((s) => s.panelId === panelId)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      )
+    }
+    return _cache.get(panelId)!
   },
 
   createSnapshot(panel: Panel, name: string): Snapshot {

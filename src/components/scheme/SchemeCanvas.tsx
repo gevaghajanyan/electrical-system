@@ -12,6 +12,7 @@ interface Props {
   scheme: Scheme
   zoom: number
   onZoomChange: (z: number) => void
+  wireRouting?: 'orthogonal' | 'straight'
 }
 
 function portColor(label: string): string {
@@ -218,7 +219,7 @@ function NodeSymbol({ type }: { type: SchemeNodeType }) {
 
 // ── Main canvas ───────────────────────────────────────────────────────────────
 
-export function SchemeCanvas({ scheme, zoom, onZoomChange }: Props) {
+export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthogonal' }: Props) {
   const storeState = useSchemeStore()
   const { selectedNodeId, selectedWireId, connectingFrom } = storeState
 
@@ -406,7 +407,9 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange }: Props) {
       const color = portColor(fromPort.label || toPort.label)
       const mx = (x1 + x2) / 2
       const my = (y1 + y2) / 2
-      const d = orthogonalPath(x1, y1, x2, y2)
+      const d = wireRouting === 'straight'
+        ? `M ${x1} ${y1} L ${x2} ${y2}`
+        : orthogonalPath(x1, y1, x2, y2)
 
       return (
         <g key={wire.id} onClick={(e) => { e.stopPropagation(); schemeStore.selectWire(wire.id) }} style={{ cursor: 'pointer' }}>
@@ -454,7 +457,9 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange }: Props) {
     const { x: x1, y: y1 } = getRotatedPortPos(fromNode, fromPort)
     const x2 = mousePos.x
     const y2 = mousePos.y
-    const d = orthogonalPath(x1, y1, x2, y2)
+    const d = wireRouting === 'straight'
+      ? `M ${x1} ${y1} L ${x2} ${y2}`
+      : orthogonalPath(x1, y1, x2, y2)
 
     return (
       <path
@@ -580,7 +585,56 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange }: Props) {
     )
   }
 
+  function renderMinimap() {
+    if (scheme.nodes.length === 0) return null
+    const MW = 160, MH = 100, PAD = 24
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    for (const node of scheme.nodes) {
+      const def = SCHEME_DEFS[node.type]
+      minX = Math.min(minX, node.x)
+      minY = Math.min(minY, node.y)
+      maxX = Math.max(maxX, node.x + def.width)
+      maxY = Math.max(maxY, node.y + def.height)
+    }
+    const contentW = maxX - minX + PAD * 2
+    const contentH = maxY - minY + PAD * 2
+    const scale = Math.min(MW / contentW, MH / contentH, 0.8)
+    const toM = (x: number, y: number) => ({
+      x: (x - minX + PAD) * scale,
+      y: (y - minY + PAD) * scale,
+    })
+    const svgEl = svgRef.current
+    const { width: svgW, height: svgH } = svgEl?.getBoundingClientRect() ?? { width: 800, height: 600 }
+    const vpM = toM(-pan.x / zoom, -pan.y / zoom)
+    const vpMW = (svgW / zoom) * scale
+    const vpMH = (svgH / zoom) * scale
+
+    function handleMinimapClick(e: React.MouseEvent<SVGSVGElement>) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      const mx = e.clientX - rect.left
+      const my = e.clientY - rect.top
+      const wx = mx / scale + minX - PAD
+      const wy = my / scale + minY - PAD
+      const { width: sw, height: sh } = svgRef.current?.getBoundingClientRect() ?? { width: 800, height: 600 }
+      setPan({ x: -(wx * zoom - sw / 2), y: -(wy * zoom - sh / 2) })
+    }
+
+    return (
+      <div style={{ position: 'absolute', bottom: 40, right: 8, zIndex: 10, background: 'rgba(0,0,0,0.65)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)', overflow: 'hidden' }}>
+        <svg width={MW} height={MH} style={{ display: 'block', cursor: 'crosshair' }} onClick={handleMinimapClick}>
+          {scheme.nodes.map((node) => {
+            const def = SCHEME_DEFS[node.type]
+            const { x, y } = toM(node.x, node.y)
+            return <rect key={node.id} x={x} y={y} width={Math.max(4, def.width * scale)} height={Math.max(4, def.height * scale)} fill={def.color} rx={1} />
+          })}
+          <rect x={vpM.x} y={vpM.y} width={Math.max(2, vpMW)} height={Math.max(2, vpMH)} fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.55)" strokeWidth={1} />
+        </svg>
+      </div>
+    )
+  }
+
   return (
+    <div className="relative h-full w-full">
     <svg
       ref={svgRef}
       className="h-full w-full select-none bg-zinc-50 dark:bg-zinc-950"
@@ -629,5 +683,7 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange }: Props) {
         {scheme.nodes.map((node) => renderNode(node))}
       </g>
     </svg>
+    {renderMinimap()}
+    </div>
   )
 }

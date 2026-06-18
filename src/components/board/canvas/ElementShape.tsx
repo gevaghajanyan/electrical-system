@@ -15,6 +15,14 @@ import { isWithinRail, hasSlotCollision } from '@/lib/utils/slotUtils'
 import { getRelativePorts, phaseColor, phaseLabel } from '@/lib/utils/portUtils'
 import { canConnect, isPortConnected } from '@/lib/utils/connectionUtils'
 
+const CIRCUIT_PALETTE = ['#ef4444','#f97316','#f59e0b','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
+
+function circuitTagColor(tag: string): string {
+  let h = 0
+  for (let i = 0; i < tag.length; i++) h = tag.charCodeAt(i) + ((h << 5) - h)
+  return CIRCUIT_PALETTE[Math.abs(h) % CIRCUIT_PALETTE.length]
+}
+
 function getDisplayLabel(element: PanelElement): string {
   const p = element.properties
   if (p.kind === 'mcb' || p.kind === 'rcbo') return `${p.curve}${p.rating}A`
@@ -298,6 +306,17 @@ export function ElementShape({
         shadowOffsetY={2}
         shadowEnabled
       />
+
+      {/* Circuit tag stripe — left edge */}
+      {element.circuitTag && (
+        <Rect
+          x={0} y={0}
+          width={4} height={h}
+          fill={circuitTagColor(element.circuitTag)}
+          cornerRadius={[isMainSwitch ? 6 : 4, 0, 0, isMainSwitch ? 6 : 4]}
+          listening={false}
+        />
+      )}
 
       {/* Main switch extra outer ring */}
       {isMainSwitch && (

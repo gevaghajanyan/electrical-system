@@ -154,11 +154,20 @@ function VoltageRelayForm({ props, onChange }: { props: VoltageRelayProperties; 
   )
 }
 
+const CIRCUIT_PALETTE = ['#ef4444','#f97316','#f59e0b','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
+
+function circuitTagColor(tag: string): string {
+  let h = 0
+  for (let i = 0; i < tag.length; i++) h = tag.charCodeAt(i) + ((h << 5) - h)
+  return CIRCUIT_PALETTE[Math.abs(h) % CIRCUIT_PALETTE.length]
+}
+
 function PropertiesForm({ element }: { element: PanelElement }) {
   const { t } = useTranslation()
   const def = ELEMENT_DEFS_MAP.get(element.typeId)
   const [label, setLabel] = useState(element.label)
   const [notes, setNotes] = useState(element.notes)
+  const [circuitTag, setCircuitTag] = useState(element.circuitTag ?? '')
   const [elementProps, setElementProps] = useState(element.properties)
   const schemes = useSyncExternalStore(
     schemeStore.subscribe,
@@ -172,14 +181,15 @@ function PropertiesForm({ element }: { element: PanelElement }) {
   useEffect(() => {
     setLabel(element.label)
     setNotes(element.notes)
+    setCircuitTag(element.circuitTag ?? '')
     setElementProps(element.properties)
-  }, [element.id, element.label, element.notes, element.properties])
+  }, [element.id, element.label, element.notes, element.circuitTag, element.properties])
 
   const activePanel = useActivePanel()
   const errors = activePanel ? validateElement(element, activePanel) : []
 
   function save() {
-    panelStore.updateElement(element.id, { label, notes, properties: elementProps })
+    panelStore.updateElement(element.id, { label, notes, circuitTag: circuitTag.trim() || undefined, properties: elementProps })
   }
 
   function handleDelete() {
@@ -233,6 +243,24 @@ function PropertiesForm({ element }: { element: PanelElement }) {
         <div>
           <Label htmlFor="el-notes">{t('properties.notes')}</Label>
           <Textarea id="el-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder={t('properties.notesPlaceholder')} />
+        </div>
+
+        <div>
+          <Label htmlFor="el-circuit">Circuit tag</Label>
+          <div className="flex items-center gap-2">
+            {circuitTag && (
+              <span
+                className="h-5 w-5 shrink-0 rounded-full border border-zinc-200 dark:border-zinc-700"
+                style={{ background: circuitTagColor(circuitTag) }}
+              />
+            )}
+            <Input
+              id="el-circuit"
+              value={circuitTag}
+              onChange={(e) => setCircuitTag(e.target.value)}
+              placeholder="e.g. Kitchen, Lighting…"
+            />
+          </div>
         </div>
 
         {isMcb && (

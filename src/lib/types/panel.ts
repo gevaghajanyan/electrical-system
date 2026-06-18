@@ -111,6 +111,7 @@ export interface PanelElement {
   slotWidth: number
   label: string
   notes: string
+  circuitTag?: string
   properties: ElementProperties
 }
 

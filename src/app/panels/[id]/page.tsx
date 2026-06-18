@@ -7,6 +7,8 @@ import { panelStore } from '@/lib/store/panelStore'
 import { usePanelStore } from '@/lib/hooks/usePanelStore'
 import { readJsonFile } from '@/lib/utils/importExport'
 import type { ElementTypeId } from '@/lib/types/panel'
+import { ELEMENT_DEFS_MAP } from '@/lib/constants/elementDefs'
+import { hasSlotCollision } from '@/lib/utils/slotUtils'
 import { ElementPalette } from '@/components/board/ElementPalette'
 import { PropertiesPanel } from '@/components/board/PropertiesPanel'
 import { PanelCanvas } from '@/components/board/PanelCanvas'
@@ -114,7 +116,48 @@ export default function PanelEditorPage({
       setShortcutModalOpen(true)
       return
     }
-  }, [selectedElementId, multiSelectedIds, searchQuery])
+
+    // Keyboard element placement (single-key, canvas view only, no modifier)
+    if (!isMod && view === 'canvas') {
+      const placementMap: Record<string, ElementTypeId> = {
+        b: 'mcb_1p',
+        m: 'mcb_2p',
+        '3': 'mcb_3p',
+        d: 'rcd_2p',
+        o: 'rcbo_1p',
+        i: 'isolator_2p',
+        s: 'surge_protector',
+        n: 'neutral_bar',
+      }
+      const typeId = placementMap[e.key.toLowerCase()]
+      if (typeId) {
+        const activePanel = panelStore.getActivePanel()
+        const def = ELEMENT_DEFS_MAP.get(typeId)
+        if (activePanel && def) {
+          for (const rail of activePanel.rails) {
+            let placed = false
+            for (let slot = 0; slot <= rail.slotCount - def.defaultSlotWidth; slot++) {
+              if (!hasSlotCollision(activePanel.elements, rail.id, slot, def.defaultSlotWidth)) {
+                panelStore.addElement({
+                  typeId,
+                  railId: rail.id,
+                  slotStart: slot,
+                  slotWidth: def.defaultSlotWidth,
+                  label: def.defaultLabel,
+                  notes: '',
+                  properties: { ...def.defaultProperties },
+                })
+                placed = true
+                break
+              }
+            }
+            if (placed) break
+          }
+        }
+        return
+      }
+    }
+  }, [selectedElementId, multiSelectedIds, searchQuery, view])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
