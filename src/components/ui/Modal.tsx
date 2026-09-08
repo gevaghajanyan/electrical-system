@@ -23,20 +23,48 @@ const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabi
 export function Modal({ open, onClose, title, children, footer, maxWidth = 'md' }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
 
+  // Keep the latest onClose in a ref so effects can read it without re-running
+  // when the parent hands us a fresh arrow function each render (which was
+  // causing initial-focus to fire on every keystroke → inputs losing focus
+  // after the first character on mobile).
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+
+  // Focus the first focusable element ONCE when the modal opens.
   useEffect(() => {
     if (!open) return
-    const panel = panelRef.current
-    const focusable = panel?.querySelectorAll<HTMLElement>(FOCUSABLE)
-    const first = focusable?.[0]
-    const last = focusable?.[focusable.length - 1]
-    first?.focus()
+    // Wait a frame so refs / autoFocus have settled and we don't fight the
+    // browser for focus on iOS Safari.
+    const raf = requestAnimationFrame(() => {
+      const panel = panelRef.current
+      if (!panel) return
+      // Prefer inputs / textareas over buttons for the initial focus.
+      const preferred = panel.querySelector<HTMLElement>('input, textarea, select')
+      if (preferred) {
+        preferred.focus()
+        return
+      }
+      const first = panel.querySelector<HTMLElement>(FOCUSABLE)
+      first?.focus()
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [open])
 
+  // Escape + Tab focus-trap — depends only on `open`; reads onClose via ref.
+  useEffect(() => {
+    if (!open) return
     function handler(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key === 'Tab') {
+        const panel = panelRef.current
+        if (!panel) return
+        const focusable = panel.querySelectorAll<HTMLElement>(FOCUSABLE)
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
         if (e.shiftKey) {
           if (document.activeElement === first) {
             e.preventDefault()
@@ -50,10 +78,18 @@ export function Modal({ open, onClose, title, children, footer, maxWidth = 'md' 
         }
       }
     }
-
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [open, onClose])
+  }, [open])
+
+  // Lock body scroll while the modal is open (helps on iOS where a background
+  // tap can still scroll the page).
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [open])
 
   if (!open) return null
 

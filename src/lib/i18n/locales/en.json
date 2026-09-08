@@ -156,6 +156,9 @@
     "pageTitle": "Electrical calculators",
     "pageSubtitle": "Fast, offline calculators for daily electrical work.",
     "searchPlaceholder": "Search calculators…",
+    "backToList": "Back to calculators",
+    "previous": "Previous",
+    "next": "Next",
     "groups": {
       "basic": "Basic",
       "installation": "Installation",
