@@ -112,11 +112,13 @@ export function createPanelFromTemplate(
     name: panelName,
     description: template.description,
     location: '',
+    notes: '',
     voltage,
     frequency,
     rails,
     elements,
     connections: [],
     annotations: [],
+    inputCables: [],
   }
 }

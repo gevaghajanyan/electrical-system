@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { PanelElement, CurrentRating, TripCurve, RcdSensitivity, RcdType } from '@/lib/types/panel'
-import type { McbProperties, RcdProperties, RcboProperties, IsolatorProperties, VoltageRelayProperties } from '@/lib/types/panel'
+import type { PanelElement } from '@/lib/types/panel'
 import { ELEMENT_DEFS_MAP } from '@/lib/constants/elementDefs'
 import { panelStore } from '@/lib/store/panelStore'
 import { useActivePanel, useSelectedElement } from '@/lib/hooks/usePanelStore'
@@ -11,156 +10,11 @@ import { schemeStore } from '@/lib/store/schemeStore'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
-import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { validateElement } from '@/lib/utils/validation'
-
-const RATINGS: CurrentRating[] = [6, 10, 13, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125]
-const CURVES: TripCurve[] = ['B', 'C', 'D']
-const SENSITIVITIES: RcdSensitivity[] = [10, 30, 100, 300]
-const RCD_TYPES: RcdType[] = ['AC', 'A', 'F', 'B']
-
-function McbForm({ props, onChange }: { props: McbProperties; onChange: (p: McbProperties) => void }) {
-  const { t } = useTranslation()
-  return (
-    <>
-      <div>
-        <Label htmlFor="mcb-rating">{t('properties.rating')}</Label>
-        <Select id="mcb-rating" value={props.rating} onChange={(e) => onChange({ ...props, rating: Number(e.target.value) as CurrentRating })}>
-          {RATINGS.map((r) => <option key={r} value={r}>{r}A</option>)}
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor="mcb-curve">{t('properties.tripCurve')}</Label>
-        <Select id="mcb-curve" value={props.curve} onChange={(e) => onChange({ ...props, curve: e.target.value as TripCurve })}>
-          {CURVES.map((c) => <option key={c} value={c}>{t('properties.curve', { c })}</option>)}
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor="mcb-ka">{t('properties.breakingCapacity')}</Label>
-        <Select id="mcb-ka" value={props.breakingCapacity} onChange={(e) => onChange({ ...props, breakingCapacity: Number(e.target.value) })}>
-          {[3, 6, 10, 15].map((v) => <option key={v} value={v}>{v} kA</option>)}
-        </Select>
-      </div>
-    </>
-  )
-}
-
-function RcdForm({ props, onChange }: { props: RcdProperties; onChange: (p: RcdProperties) => void }) {
-  const { t } = useTranslation()
-  return (
-    <>
-      <div>
-        <Label htmlFor="rcd-rating">{t('properties.rating')}</Label>
-        <Select id="rcd-rating" value={props.rating} onChange={(e) => onChange({ ...props, rating: Number(e.target.value) as CurrentRating })}>
-          {RATINGS.map((r) => <option key={r} value={r}>{r}A</option>)}
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor="rcd-sens">{t('properties.sensitivity')}</Label>
-        <Select id="rcd-sens" value={props.sensitivity} onChange={(e) => onChange({ ...props, sensitivity: Number(e.target.value) as RcdSensitivity })}>
-          {SENSITIVITIES.map((s) => <option key={s} value={s}>{s}mA</option>)}
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor="rcd-type">{t('properties.type')}</Label>
-        <Select id="rcd-type" value={props.type} onChange={(e) => onChange({ ...props, type: e.target.value as RcdType })}>
-          {RCD_TYPES.map((t2) => <option key={t2} value={t2}>{t('properties.typeValue', { t: t2 })}</option>)}
-        </Select>
-      </div>
-    </>
-  )
-}
-
-function RcboForm({ props, onChange }: { props: RcboProperties; onChange: (p: RcboProperties) => void }) {
-  const { t } = useTranslation()
-  return (
-    <>
-      <div>
-        <Label htmlFor="rcbo-rating">{t('properties.rating')}</Label>
-        <Select id="rcbo-rating" value={props.rating} onChange={(e) => onChange({ ...props, rating: Number(e.target.value) as CurrentRating })}>
-          {RATINGS.map((r) => <option key={r} value={r}>{r}A</option>)}
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor="rcbo-curve">{t('properties.tripCurve')}</Label>
-        <Select id="rcbo-curve" value={props.curve} onChange={(e) => onChange({ ...props, curve: e.target.value as TripCurve })}>
-          {CURVES.map((c) => <option key={c} value={c}>{t('properties.curve', { c })}</option>)}
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor="rcbo-sens">{t('properties.sensitivity')}</Label>
-        <Select id="rcbo-sens" value={props.sensitivity} onChange={(e) => onChange({ ...props, sensitivity: Number(e.target.value) as RcdSensitivity })}>
-          {SENSITIVITIES.map((s) => <option key={s} value={s}>{s}mA</option>)}
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor="rcbo-type">{t('properties.rcdType')}</Label>
-        <Select id="rcbo-type" value={props.type} onChange={(e) => onChange({ ...props, type: e.target.value as RcdType })}>
-          {RCD_TYPES.map((t2) => <option key={t2} value={t2}>{t('properties.typeValue', { t: t2 })}</option>)}
-        </Select>
-      </div>
-    </>
-  )
-}
-
-function IsolatorForm({ props, onChange }: { props: IsolatorProperties; onChange: (p: IsolatorProperties) => void }) {
-  const { t } = useTranslation()
-  return (
-    <div>
-      <Label htmlFor="iso-rating">{t('properties.rating')}</Label>
-      <Select id="iso-rating" value={props.rating} onChange={(e) => onChange({ ...props, rating: Number(e.target.value) as CurrentRating })}>
-        {RATINGS.map((r) => <option key={r} value={r}>{r}A</option>)}
-      </Select>
-    </div>
-  )
-}
-
-function VoltageRelayForm({ props, onChange }: { props: VoltageRelayProperties; onChange: (p: VoltageRelayProperties) => void }) {
-  const { t } = useTranslation()
-  return (
-    <>
-      <div>
-        <Label htmlFor="vr-min">{t('properties.minVoltage')}</Label>
-        <Input
-          id="vr-min"
-          type="number"
-          value={props.minVoltage}
-          min={100} max={400}
-          onChange={(e) => onChange({ ...props, minVoltage: Number(e.target.value) })}
-        />
-      </div>
-      <div>
-        <Label htmlFor="vr-max">{t('properties.maxVoltage')}</Label>
-        <Input
-          id="vr-max"
-          type="number"
-          value={props.maxVoltage}
-          min={100} max={400}
-          onChange={(e) => onChange({ ...props, maxVoltage: Number(e.target.value) })}
-        />
-      </div>
-      <div>
-        <Label htmlFor="vr-delay">{t('properties.tripDelay')}</Label>
-        <Input
-          id="vr-delay"
-          type="number"
-          value={props.delaySeconds}
-          min={0} max={600}
-          onChange={(e) => onChange({ ...props, delaySeconds: Number(e.target.value) })}
-        />
-      </div>
-    </>
-  )
-}
-
-const CIRCUIT_PALETTE = ['#ef4444','#f97316','#f59e0b','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
-
-function circuitTagColor(tag: string): string {
-  let h = 0
-  for (let i = 0; i < tag.length; i++) h = tag.charCodeAt(i) + ((h << 5) - h)
-  return CIRCUIT_PALETTE[Math.abs(h) % CIRCUIT_PALETTE.length]
-}
+import { circuitTagColor } from '@/lib/utils/circuitTagColor'
+import { getElementLabel } from '@/lib/utils/elementLabel'
+import { PropertyForm } from './forms/PropertyForm'
 
 function PropertiesForm({ element }: { element: PanelElement }) {
   const { t } = useTranslation()
@@ -168,6 +22,7 @@ function PropertiesForm({ element }: { element: PanelElement }) {
   const [label, setLabel] = useState(element.label)
   const [notes, setNotes] = useState(element.notes)
   const [circuitTag, setCircuitTag] = useState(element.circuitTag ?? '')
+  const [phase, setPhase] = useState<'L1' | 'L2' | 'L3' | ''>(element.phase ?? '')
   const [elementProps, setElementProps] = useState(element.properties)
   const schemes = useSyncExternalStore(
     schemeStore.subscribe,
@@ -182,14 +37,21 @@ function PropertiesForm({ element }: { element: PanelElement }) {
     setLabel(element.label)
     setNotes(element.notes)
     setCircuitTag(element.circuitTag ?? '')
+    setPhase(element.phase ?? '')
     setElementProps(element.properties)
-  }, [element.id, element.label, element.notes, element.circuitTag, element.properties])
+  }, [element.id, element.label, element.notes, element.circuitTag, element.phase, element.properties])
 
   const activePanel = useActivePanel()
   const errors = activePanel ? validateElement(element, activePanel) : []
 
   function save() {
-    panelStore.updateElement(element.id, { label, notes, circuitTag: circuitTag.trim() || undefined, properties: elementProps })
+    panelStore.updateElement(element.id, {
+      label,
+      notes,
+      circuitTag: circuitTag.trim() || undefined,
+      phase: (phase as 'L1' | 'L2' | 'L3') || undefined,
+      properties: elementProps,
+    })
   }
 
   function handleDelete() {
@@ -198,11 +60,7 @@ function PropertiesForm({ element }: { element: PanelElement }) {
     }
   }
 
-  const isMcb = elementProps.kind === 'mcb'
-  const isRcd = elementProps.kind === 'rcd'
-  const isRcbo = elementProps.kind === 'rcbo'
-  const isIso = elementProps.kind === 'isolator'
-  const isVr = elementProps.kind === 'voltage_relay'
+  const defLabel = def ? getElementLabel(def, t) : ''
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -216,9 +74,9 @@ function PropertiesForm({ element }: { element: PanelElement }) {
           </div>
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">
-              {label || def?.label || element.typeId}
+              {label || defLabel || element.typeId}
             </h2>
-            <p className="text-xs text-zinc-500">{def?.label}</p>
+            <p className="text-xs text-zinc-500">{defLabel}</p>
           </div>
         </div>
       </div>
@@ -246,7 +104,7 @@ function PropertiesForm({ element }: { element: PanelElement }) {
         </div>
 
         <div>
-          <Label htmlFor="el-circuit">Circuit tag</Label>
+          <Label htmlFor="el-circuit">{t('properties.circuitTag')}</Label>
           <div className="flex items-center gap-2">
             {circuitTag && (
               <span
@@ -258,37 +116,46 @@ function PropertiesForm({ element }: { element: PanelElement }) {
               id="el-circuit"
               value={circuitTag}
               onChange={(e) => setCircuitTag(e.target.value)}
-              placeholder="e.g. Kitchen, Lighting…"
+              placeholder={t('properties.circuitTagPlaceholder')}
             />
           </div>
         </div>
 
-        {isMcb && (
-          <McbForm props={elementProps} onChange={(p) => setElementProps(p)} />
-        )}
-        {isRcd && (
-          <RcdForm props={elementProps} onChange={(p) => setElementProps(p)} />
-        )}
-        {isRcbo && (
-          <RcboForm props={elementProps} onChange={(p) => setElementProps(p)} />
-        )}
-        {isIso && (
-          <IsolatorForm props={elementProps} onChange={(p) => setElementProps(p)} />
-        )}
-        {isVr && (
-          <VoltageRelayForm props={elementProps} onChange={(p) => setElementProps(p)} />
-        )}
+        <div>
+          <Label htmlFor="el-phase">{t('properties.phase')}</Label>
+          <div className="flex gap-1.5 mt-1">
+            {(['', 'L1', 'L2', 'L3'] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPhase(p)}
+                className={`rounded-md px-2.5 py-1 text-xs font-semibold border transition-colors touch-manipulation min-h-[32px] ${
+                  phase === p
+                    ? p === 'L1' ? 'bg-red-500 border-red-500 text-white'
+                      : p === 'L2' ? 'bg-amber-400 border-amber-400 text-white'
+                      : p === 'L3' ? 'bg-blue-500 border-blue-500 text-white'
+                      : 'bg-zinc-200 border-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:border-zinc-700 dark:text-zinc-200'
+                    : 'border-zinc-200 text-zinc-500 hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-400'
+                }`}
+              >
+                {p === '' ? '—' : p}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <PropertyForm props={elementProps} onChange={setElementProps} />
 
         {linkedSchemes.length > 0 && (
           <div className="rounded-md bg-blue-50 px-2.5 py-2 dark:bg-blue-900/20">
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-blue-500 dark:text-blue-400">
-              Referenced in schemes
+              {t('properties.referencedInSchemes')}
             </p>
             <div className="space-y-0.5">
               {linkedSchemes.map((s) => (
                 <a
                   key={s.id}
-                  href={`/schemes/${s.id}`}
+                  href={`/schemes/edit?id=${s.id}`}
                   className="flex items-center gap-1 text-xs text-blue-600 hover:underline dark:text-blue-400"
                 >
                   <svg className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -348,9 +215,7 @@ export function PropertiesPanel({ className = '' }: PropertiesPanelProps) {
   const element = useSelectedElement()
 
   if (!element) {
-    return (
-      <EmptyState className={className} />
-    )
+    return <EmptyState className={className} />
   }
 
   return (
@@ -359,4 +224,3 @@ export function PropertiesPanel({ className = '' }: PropertiesPanelProps) {
     </div>
   )
 }
-

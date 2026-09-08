@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next'
 import type { Panel } from '@/lib/types/panel'
 import { panelStore } from '@/lib/store/panelStore'
 import { usePanelStore } from '@/lib/hooks/usePanelStore'
-import { exportToPdf, exportFullReport, exportToImage, exportToCsv, exportPanelSchedule } from '@/lib/utils/pdfExport'
+import { exportToPdf, exportFullReport, exportToImage, exportToCsv, exportPanelSchedule, printLabelSheet } from '@/lib/utils/pdfExport'
+import { downloadShareQr } from '@/lib/utils/qrShare'
 import { exportPanelToSvg } from '@/lib/utils/svgExport'
 import { downloadJson } from '@/lib/utils/importExport'
 import { HistoryModal } from './HistoryModal'
@@ -16,9 +17,11 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { Select } from '@/components/ui/Select'
+import { Textarea } from '@/components/ui/Textarea'
 import { RailConfigurator } from './RailConfigurator'
 import { BomModal } from './BomModal'
 import { SnapshotModal } from './SnapshotModal'
+import { InputCablesModal } from './InputCablesModal'
 
 function computeLoadSummary(panel: Panel): { totalA: number; railLoads: { label: string; totalA: number }[] } {
   const railLoads = panel.rails.map((rail) => {
@@ -69,11 +72,14 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
   const [validationOpen, setValidationOpen] = useState(false)
   const [loadOpen, setLoadOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [cablesOpen, setCablesOpen] = useState(false)
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
 
   // Panel metadata editor form state
   const [metaName, setMetaName] = useState(panel.name)
   const [metaDescription, setMetaDescription] = useState(panel.description)
   const [metaLocation, setMetaLocation] = useState(panel.location)
+  const [metaNotes, setMetaNotes] = useState(panel.notes)
   const [metaVoltage, setMetaVoltage] = useState<230 | 400>(panel.voltage)
   const [metaFrequency, setMetaFrequency] = useState<50 | 60>(panel.frequency)
 
@@ -81,6 +87,7 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
     setMetaName(panel.name)
     setMetaDescription(panel.description)
     setMetaLocation(panel.location)
+    setMetaNotes(panel.notes)
     setMetaVoltage(panel.voltage)
     setMetaFrequency(panel.frequency)
     setSettingsOpen(true)
@@ -91,6 +98,7 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
       name: metaName,
       description: metaDescription,
       location: metaLocation,
+      notes: metaNotes,
       voltage: metaVoltage,
       frequency: metaFrequency,
     })
@@ -106,14 +114,14 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
 
   return (
     <>
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-zinc-200 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900">
+      <header className="flex h-12 shrink-0 items-center gap-1 overflow-x-auto border-b border-zinc-200 bg-white px-2 dark:border-zinc-700 dark:bg-zinc-900 sm:gap-2 sm:px-3">
         {/* Left: rail & view controls */}
         <div className="flex items-center gap-1">
           <Button size="sm" variant="outline" onClick={() => setRailConfigOpen(true)}>
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
-            {t('toolbar.rails')}
+            <span className="hidden sm:inline">{t('toolbar.rails')}</span>
           </Button>
 
           <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700 mx-1" />
@@ -138,29 +146,20 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
           {panel.elements.length > 0 && (
             <>
               <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => panelStore.packAllRails()}
-                title="Pack: remove gaps between elements on each rail"
-              >
+              <Button size="icon" variant="ghost" onClick={() => panelStore.packAllRails()} title="Pack: remove gaps between elements">
                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m-12 4h12m-8 4h8M4 7l-2 2 2 2M4 15l-2 2 2 2" />
                 </svg>
-                Pack
               </Button>
               <Button
-                size="sm"
+                size="icon"
                 variant="ghost"
-                onClick={() => {
-                  const prefix = window.prompt('Label prefix (e.g. C, F, L):', 'C')
-                  if (prefix !== null) panelStore.autoNumberLabels(prefix.trim() || 'C')
-                }}
+                title="Auto-number labels"
+                onClick={() => { const p = window.prompt('Label prefix (e.g. C, F, L):', 'C'); if (p !== null) panelStore.autoNumberLabels(p.trim() || 'C') }}
               >
                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
-                # Label
               </Button>
             </>
           )}
@@ -226,116 +225,113 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
           )}
         </div>
 
-        {/* Right: BOM + export / import */}
+        {/* Right: tools + export dropdown */}
         <div className="flex items-center gap-1">
           <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
-          <Button size="sm" variant="ghost" onClick={() => setHistoryOpen(true)} title="Change history">
+
+          {/* Icon-only tool buttons */}
+          <Button size="icon" variant="ghost" onClick={() => setHistoryOpen(true)} title="Change history">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            History
           </Button>
-
-          <Button size="sm" variant="ghost" onClick={() => setLoadOpen(true)} title="Load calculation">
+          <Button size="icon" variant="ghost" onClick={() => setCablesOpen(true)} title={`Input cables${panel.inputCables.length > 0 ? ` (${panel.inputCables.length})` : ''}`}>
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
+            </svg>
+          </Button>
+          <Button size="icon" variant="ghost" onClick={() => setLoadOpen(true)} title="Load calculation">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            Load
           </Button>
-
-          <Button size="sm" variant="ghost" onClick={() => setSnapshotOpen(true)} title="Snapshots">
+          <Button size="icon" variant="ghost" onClick={() => setSnapshotOpen(true)} title="Snapshots">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            Snapshots
           </Button>
-
-          <Button size="sm" variant="ghost" onClick={() => setBomOpen(true)} title="Bill of Materials">
+          <Button size="icon" variant="ghost" onClick={() => setBomOpen(true)} title="Bill of Materials">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
-            BOM
           </Button>
 
           <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
 
-          <Button size="sm" variant="ghost" onClick={() => exportPanelSchedule(panel)} title="Export A4 panel schedule PDF">
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            Schedule
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => exportToCsv(panel)} title="Export cable schedule as CSV">
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            CSV
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            title="Copy share link"
-            onClick={() => {
-              try {
-                const json = JSON.stringify(panel)
-                const encoded = btoa(encodeURIComponent(json))
-                const url = `${window.location.origin}/panels?share=${encoded}`
-                navigator.clipboard.writeText(url).then(() => alert('Share link copied to clipboard!')).catch(() => {
-                  const ta = document.createElement('textarea')
-                  ta.value = url
-                  document.body.appendChild(ta)
-                  ta.select()
-                  document.execCommand('copy')
-                  document.body.removeChild(ta)
-                  alert('Share link copied!')
-                })
-              } catch {
-                alert('Failed to generate share link.')
-              }
-            }}
-          >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-            </svg>
-            Share
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onImport} title="Import panel JSON">
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            {t('toolbar.import')}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => downloadJson(panel)} title="Export as JSON">
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            {t('toolbar.json')}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => exportToPdf(panel)} title="Export layout to PDF">
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
-            {t('toolbar.pdf')}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => exportPanelToSvg(panel)} title="Export layout as SVG">
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-            </svg>
-            SVG
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => exportToImage(panel, 'png')} title="Export layout as PNG image">
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            PNG
-          </Button>
-          <Button size="sm" variant="primary" onClick={() => exportFullReport(panel)} title="Export full report with BOM">
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Report
-          </Button>
+          {/* Export dropdown */}
+          <div className="relative">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setExportMenuOpen((o) => !o)}
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export
+              <svg className="h-3 w-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </Button>
+
+            {exportMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setExportMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                  <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Print</p>
+                  {[
+                    { label: 'Label sheet', icon: 'M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z', action: () => printLabelSheet(panel) },
+                    { label: 'Panel schedule', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', action: () => exportPanelSchedule(panel) },
+                    { label: 'Full report PDF', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', action: () => exportFullReport(panel) },
+                  ].map(({ label, icon, action }) => (
+                    <button key={label} onClick={() => { action(); setExportMenuOpen(false) }} className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800">
+                      <svg className="h-3.5 w-3.5 text-zinc-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} /></svg>
+                      {label}
+                    </button>
+                  ))}
+                  <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" />
+                  <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Download</p>
+                  {[
+                    { label: 'Layout PDF', icon: 'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z', action: () => exportToPdf(panel) },
+                    { label: 'SVG', icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4', action: () => exportPanelToSvg(panel) },
+                    { label: 'PNG image', icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z', action: () => exportToImage(panel, 'png') },
+                    { label: 'CSV schedule', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', action: () => exportToCsv(panel) },
+                    { label: 'JSON', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4', action: () => downloadJson(panel) },
+                    { label: 'QR code', icon: 'M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z', action: () => downloadShareQr(panel).catch(() => alert('QR failed')) },
+                  ].map(({ label, icon, action }) => (
+                    <button key={label} onClick={() => { action(); setExportMenuOpen(false) }} className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800">
+                      <svg className="h-3.5 w-3.5 text-zinc-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} /></svg>
+                      {label}
+                    </button>
+                  ))}
+                  <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" />
+                  <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Import</p>
+                  <button onClick={() => { onImport(); setExportMenuOpen(false) }} className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800">
+                    <svg className="h-3.5 w-3.5 text-zinc-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                    Import JSON
+                  </button>
+                  <button
+                    onClick={() => {
+                      try {
+                        const json = JSON.stringify(panel)
+                        const encoded = btoa(encodeURIComponent(json))
+                        const url = `${window.location.origin}/panels?share=${encoded}`
+                        navigator.clipboard.writeText(url).then(() => alert('Share link copied!')).catch(() => {
+                          const ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('Share link copied!')
+                        })
+                      } catch { alert('Failed.') }
+                      setExportMenuOpen(false)
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    <svg className="h-3.5 w-3.5 text-zinc-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                    Copy share link
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -343,6 +339,7 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
       <RailConfigurator open={railConfigOpen} onClose={() => setRailConfigOpen(false)} />
       <BomModal panel={panel} open={bomOpen} onClose={() => setBomOpen(false)} />
       <SnapshotModal open={snapshotOpen} onClose={() => setSnapshotOpen(false)} panel={panel} />
+      <InputCablesModal open={cablesOpen} onClose={() => setCablesOpen(false)} panel={panel} />
 
       {/* Panel Metadata Editor Modal */}
       <Modal
@@ -383,6 +380,16 @@ export function BoardToolbar({ panel, onImport }: BoardToolbarProps) {
               value={metaLocation}
               onChange={(e) => setMetaLocation(e.target.value)}
               placeholder="e.g. Main Building, Floor 2"
+            />
+          </div>
+          <div>
+            <Label htmlFor="meta-notes">Installer notes</Label>
+            <Textarea
+              id="meta-notes"
+              value={metaNotes}
+              onChange={(e) => setMetaNotes(e.target.value)}
+              rows={3}
+              placeholder="Tenant name, address, inspection date, notes…"
             />
           </div>
           <div className="flex gap-3">

@@ -4,11 +4,15 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { Stage, Layer, Group, Rect, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
+import { useCanvasTouchGestures } from '@/lib/hooks/useCanvasTouchGestures'
 import type { Panel, ElementTypeId } from '@/lib/types/panel'
 import {
   SLOT_WIDTH_PX, RAIL_ROW_HEIGHT_PX, PANEL_PADDING_PX, ELEMENT_HEIGHT_PX, ELEMENT_TOP_Y, SLOT_GAP,
 } from '@/lib/constants/canvasLayout'
 import { ELEMENT_DEFS_MAP } from '@/lib/constants/elementDefs'
+import { getElementFullSpec } from '@/lib/utils/elementDisplay'
+import { getElementLabel } from '@/lib/utils/elementLabel'
+import { useTranslation } from 'react-i18next'
 import { panelStore } from '@/lib/store/panelStore'
 import { usePanelStore } from '@/lib/hooks/usePanelStore'
 import { useIsDark } from '@/lib/hooks/useIsDark'
@@ -56,6 +60,7 @@ interface PanelCanvasProps {
 export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', selectedElementIds, onMultiSelectChange, annotationMode, searchQuery = '' }: PanelCanvasProps) {
   const stageRef = useRef<Konva.Stage | null>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const { t } = useTranslation()
   const { zoom, pan, selectedElementId, selectedConnectionId, selectedAnnotationId, connectingFrom } = usePanelStore()
   const isDark = useIsDark()
   const [containerSize, setContainerSize] = useState({ w: 800, h: 600 })
@@ -78,6 +83,17 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
     obs.observe(el)
     return () => obs.disconnect()
   }, [])
+
+  // Touch gestures: pinch-to-zoom + two-finger pan (mobile)
+  useCanvasTouchGestures(wrapperRef, {
+    onPinch: (delta) => {
+      const next = Math.max(0.25, Math.min(4, zoom * delta))
+      panelStore.setZoom(next)
+    },
+    onPan: (dx, dy) => {
+      panelStore.setPan({ x: pan.x + dx, y: pan.y + dy })
+    },
+  })
 
   // Wheel handler (passive: false so we can prevent default)
   const handleWheel = useCallback(
@@ -289,7 +305,7 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
     <>
       <div
         ref={wrapperRef}
-        className={['relative overflow-hidden bg-slate-100 dark:bg-zinc-900', className].join(' ')}
+        className={['relative overflow-hidden bg-slate-100 dark:bg-zinc-900 touch-none select-none', className].join(' ')}
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onDragOver={handleDragOver}
@@ -523,13 +539,8 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
           const el = panel.elements.find((e) => e.id === tooltip.id)
           const def = el ? ELEMENT_DEFS_MAP.get(el.typeId) : null
           if (!el || !def) return null
-          const p = el.properties
-          let spec = ''
-          if (p.kind === 'mcb') spec = `${p.curve}${p.rating}A / ${p.breakingCapacity}kA`
-          else if (p.kind === 'rcbo') spec = `${p.curve}${p.rating}A / ${p.sensitivity}mA`
-          else if (p.kind === 'rcd') spec = `${p.rating}A / ${p.sensitivity}mA`
-          else if (p.kind === 'isolator') spec = `${p.rating}A`
-          else if (p.kind === 'voltage_relay') spec = `${p.minVoltage}–${p.maxVoltage}V`
+          const spec = getElementFullSpec(el)
+          const defLabel = getElementLabel(def, t)
           const tx = Math.min(tooltip.x + 12, containerSize.w - 180)
           const ty = Math.max(tooltip.y - 8, 0)
           return (
@@ -541,9 +552,9 @@ export function PanelCanvas({ panel, draggingTypeId, onDragEnd, className = '', 
                 <span className="inline-flex items-center justify-center h-5 w-5 rounded text-[9px] font-bold shrink-0" style={{ backgroundColor: def.color, color: def.textColor }}>
                   {def.shortLabel}
                 </span>
-                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">{el.label || def.label}</span>
+                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">{el.label || defLabel}</span>
               </div>
-              <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{def.label}</p>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{defLabel}</p>
               {spec && <p className="text-[10px] font-medium text-zinc-700 dark:text-zinc-300 mt-0.5">{spec}</p>}
               {el.notes && <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-2">{el.notes}</p>}
             </div>

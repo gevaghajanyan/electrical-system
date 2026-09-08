@@ -1,69 +1,113 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import { schemeStore } from '@/lib/store/schemeStore'
 import { SCHEME_DEF_LIST } from '@/lib/constants/schemeDefs'
 import type { SchemeNodeType } from '@/lib/types/scheme'
+import { renderSchemeSymbol } from './symbols'
 
-// Group the palette items
-const GROUPS: { label: string; types: SchemeNodeType[] }[] = [
-  { label: 'Power', types: ['power_ac'] },
-  { label: 'Switching', types: ['switch_spst', 'push_button', 'switch_2way'] },
-  { label: 'Loads', types: ['lamp_230', 'led_220', 'motor'] },
-  { label: 'Outlets', types: ['socket_outlet'] },
-  { label: 'Other', types: ['transformer_sd', 'junction'] },
+interface Group {
+  id: string
+  labelKey: string
+  types: SchemeNodeType[]
+}
+
+const GROUPS: Group[] = [
+  { id: 'power',     labelKey: 'schemes.palette.groups.power',     types: ['power_ac'] },
+  { id: 'switching', labelKey: 'schemes.palette.groups.switching', types: ['switch_spst', 'push_button', 'switch_2way'] },
+  { id: 'loads',     labelKey: 'schemes.palette.groups.loads',     types: ['lamp_230', 'led_220', 'motor'] },
+  { id: 'outlets',   labelKey: 'schemes.palette.groups.outlets',   types: ['socket_outlet'] },
+  { id: 'other',     labelKey: 'schemes.palette.groups.other',     types: ['transformer_sd', 'junction'] },
 ]
 
-export function SchemePalette() {
-  function handleDragStart(e: React.DragEvent<HTMLDivElement>, type: SchemeNodeType) {
+function PaletteTile({
+  type,
+  label,
+  color,
+  width,
+  height,
+}: {
+  type: SchemeNodeType
+  label: string
+  color: string
+  width: number
+  height: number
+}) {
+  function handleDragStart(e: React.DragEvent<HTMLDivElement>) {
     e.dataTransfer.setData('schemeNodeType', type)
     e.dataTransfer.effectAllowed = 'copy'
   }
-
-  function handleClick(type: SchemeNodeType) {
+  function handleClick() {
     schemeStore.addNode(type, 200, 200)
   }
 
+  // Compute a fitting viewBox padding around the symbol
+  const pad = 8
   return (
-    <div className="flex h-full flex-col overflow-y-auto border-r border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-      <div className="border-b border-zinc-200 px-3 py-3 dark:border-zinc-700">
-        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          Components
+    <div
+      draggable
+      onDragStart={handleDragStart}
+      onClick={handleClick}
+      title={label}
+      className="group flex flex-col items-stretch cursor-grab select-none rounded-xl border border-zinc-200 bg-white p-2 transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-sm active:cursor-grabbing dark:border-zinc-700 dark:bg-zinc-800/70 dark:hover:border-blue-500 touch-manipulation min-h-[86px]"
+    >
+      {/* Symbol preview */}
+      <div className="flex flex-1 items-center justify-center rounded-lg bg-zinc-50 dark:bg-zinc-900/60">
+        <svg
+          viewBox={`${-pad} ${-pad} ${width + pad * 2} ${height + pad * 2}`}
+          className="h-[44px] w-auto"
+          aria-hidden
+        >
+          {renderSchemeSymbol(type)}
+        </svg>
+      </div>
+      {/* Caption */}
+      <div className="mt-1.5 flex items-center gap-1.5">
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ background: color }}
+        />
+        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-zinc-700 dark:text-zinc-200">
+          {label}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+export function SchemePalette() {
+  const { t } = useTranslation()
+
+  return (
+    <div className="flex h-full flex-col overflow-y-auto border-r border-zinc-200 bg-white/70 backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/60">
+      <div className="sticky top-0 z-10 border-b border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/80">
+        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+          {t('schemes.palette.title')}
         </p>
-        <p className="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">Drag or click to add</p>
+        <p className="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-500">
+          {t('schemes.palette.hint')}
+        </p>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto p-3">
+      <div className="flex-1 space-y-5 p-3">
         {GROUPS.map((group) => {
           const items = SCHEME_DEF_LIST.filter((d) => group.types.includes(d.type))
           if (items.length === 0) return null
           return (
-            <div key={group.label}>
-              <p className="mb-1.5 text-xs font-medium text-zinc-400 dark:text-zinc-500">
-                {group.label}
+            <div key={group.id}>
+              <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                {t(group.labelKey)}
               </p>
-              <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-2">
                 {items.map((def) => (
-                  <div
+                  <PaletteTile
                     key={def.type}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, def.type)}
-                    onClick={() => handleClick(def.type)}
-                    className="group flex cursor-grab items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2 transition-colors hover:border-zinc-300 hover:bg-white active:cursor-grabbing dark:border-zinc-700 dark:bg-zinc-800 dark:hover:border-zinc-600 dark:hover:bg-zinc-750"
-                    title={def.description}
-                  >
-                    {/* Color chip */}
-                    <span
-                      className="h-3 w-3 shrink-0 rounded-sm"
-                      style={{ backgroundColor: def.color }}
-                    />
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">
-                      {def.label}
-                    </span>
-                    {/* Port count badge */}
-                    <span className="shrink-0 text-xs text-zinc-400 dark:text-zinc-500">
-                      {def.ports.length}p
-                    </span>
-                  </div>
+                    type={def.type}
+                    label={t(`schemes.palette.nodes.${def.type}`, { defaultValue: def.label })}
+                    color={def.color}
+                    width={def.width}
+                    height={def.height}
+                  />
                 ))}
               </div>
             </div>

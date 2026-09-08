@@ -2,20 +2,235 @@
 
 @variant dark (&:where(.dark, .dark *));
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   COLOUR PALETTE
+   Warm neutrals inspired by Notion / Linear — easier on the eyes than the cold
+   default zinc scale. We override the `zinc-*` scale in-place so every existing
+   `bg-zinc-50`, `text-zinc-700`, etc. picks up the new hue with no code churn.
+   ───────────────────────────────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Warm-slate greyscale (replaces cold zinc) */
+  --c-neutral-50:  #faf9f7;
+  --c-neutral-100: #f4f3f0;
+  --c-neutral-200: #e8e6e1;
+  --c-neutral-300: #d3cfc8;
+  --c-neutral-400: #a8a49b;
+  --c-neutral-500: #78756d;
+  --c-neutral-600: #565349;
+  --c-neutral-700: #3d3a32;
+  --c-neutral-800: #26241f;
+  --c-neutral-900: #17150f;
+  --c-neutral-950: #0d0c07;
+
+  /* Brand accent — signature yellow (electrical / warning-inspired but refined) */
+  --c-brand-50:  #fef9e7;
+  --c-brand-100: #fdf1c4;
+  --c-brand-200: #fbe38b;
+  --c-brand-300: #f7cf50;
+  --c-brand-400: #f2bc2e;
+  --c-brand-500: #e5a71a;   /* PRIMARY */
+  --c-brand-600: #c68812;
+  --c-brand-700: #9a690f;
+  --c-brand-800: #6f4c0d;
+  --c-brand-900: #4a340c;
+  --c-brand-950: #2a1e07;
+
+  /* Complementary deep navy — for text-on-yellow, dark surfaces, contrast */
+  --c-ink-500: #3b5480;
+  --c-ink-600: #2f4266;
+  --c-ink-700: #253552;
+  --c-ink-800: #1b2740;
+  --c-ink-900: #131c30;
+
+  /* Softer accents */
+  --c-danger:  #d64545;
+  --c-warning: #e5a71a;
+  --c-success: #55823f;
+
+  /* Semantic surfaces */
+  --background:     var(--c-neutral-50);
+  --foreground:     var(--c-neutral-900);
+  --surface:        #ffffff;
+  --surface-muted:  var(--c-neutral-100);
+  --border:         var(--c-neutral-200);
+  --border-strong:  var(--c-neutral-300);
+
+  /* Phase colours — kept saturated because these are engineering signals, not
+     background UI. But use one slot for `warning` display consistency. */
+  --phase-l1: #d64545;
+  --phase-l2: #d99a4e;
+  --phase-l3: #4a75b3;
+  --phase-n:  #253c67;
+  --phase-pe: #55823f;
+
+  /* Radii + elevation */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 16px;
+  --shadow-sm: 0 1px 2px 0 rgb(23 21 15 / 0.04);
+  --shadow-md: 0 4px 10px -2px rgb(23 21 15 / 0.08), 0 2px 4px -2px rgb(23 21 15 / 0.06);
+  --shadow-lg: 0 12px 24px -6px rgb(23 21 15 / 0.12), 0 4px 8px -4px rgb(23 21 15 / 0.08);
 }
 
+.dark {
+  --background:    #0f1013;
+  --foreground:    #ecece7;
+  --surface:       #1a1c20;
+  --surface-muted: #23262b;
+  --border:        #2c2f35;
+  --border-strong: #3a3e46;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TAILWIND THEME OVERRIDES
+   We remap the built-in `zinc` scale to our warm-neutral values. Because the
+   codebase uses `bg-zinc-50`, `text-zinc-800`, etc. throughout, this instantly
+   softens the entire app without hunting through every file.
+   Blue scale is nudged toward a slightly muted, less eye-searing hue.
+   ───────────────────────────────────────────────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background:     var(--background);
+  --color-foreground:     var(--foreground);
+  --color-surface:        var(--surface);
+  --color-surface-muted:  var(--surface-muted);
+  --color-border:         var(--border);
+  --color-border-strong:  var(--border-strong);
+
+  --color-zinc-50:  var(--c-neutral-50);
+  --color-zinc-100: var(--c-neutral-100);
+  --color-zinc-200: var(--c-neutral-200);
+  --color-zinc-300: var(--c-neutral-300);
+  --color-zinc-400: var(--c-neutral-400);
+  --color-zinc-500: var(--c-neutral-500);
+  --color-zinc-600: var(--c-neutral-600);
+  --color-zinc-700: var(--c-neutral-700);
+  --color-zinc-800: var(--c-neutral-800);
+  --color-zinc-900: var(--c-neutral-900);
+  --color-zinc-950: var(--c-neutral-950);
+
+  /* Remap Tailwind `blue-*` to our yellow brand so every existing
+     bg-blue-*, text-blue-*, border-blue-* class instantly adopts the accent. */
+  --color-blue-50:  var(--c-brand-50);
+  --color-blue-100: var(--c-brand-100);
+  --color-blue-200: var(--c-brand-200);
+  --color-blue-300: var(--c-brand-300);
+  --color-blue-400: var(--c-brand-400);
+  --color-blue-500: var(--c-brand-500);
+  --color-blue-600: var(--c-brand-600);
+  --color-blue-700: var(--c-brand-700);
+  --color-blue-800: var(--c-brand-800);
+  --color-blue-900: var(--c-brand-900);
+  --color-blue-950: var(--c-brand-950);
+
+  /* Named tokens */
+  --color-brand-500: var(--c-brand-500);
+  --color-brand-600: var(--c-brand-600);
+  --color-brand-700: var(--c-brand-700);
+  --color-ink-500: var(--c-ink-500);
+  --color-ink-700: var(--c-ink-700);
+  --color-ink-900: var(--c-ink-900);
+
+  --color-phase-l1: var(--phase-l1);
+  --color-phase-l2: var(--phase-l2);
+  --color-phase-l3: var(--phase-l3);
+  --color-phase-n:  var(--phase-n);
+  --color-phase-pe: var(--phase-pe);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
 body {
-  background: var(--background);
+  background:
+    radial-gradient(1000px 500px at 15% -10%, color-mix(in oklab, var(--c-brand-500) 8%, transparent) 0%, transparent 60%),
+    radial-gradient(800px 400px at 100% 0%, color-mix(in oklab, var(--c-brand-400) 6%, transparent) 0%, transparent 55%),
+    var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Inter, Arial, Helvetica, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
+  font-feature-settings: 'ss01', 'cv11';
+  min-height: 100dvh;
+}
+
+/* Modern surface primitives — use via `class="surface"` / `class="surface-elev"` */
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.surface-elev {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+/* Frosted glass (used behind sticky headers, install banners, tooltips) */
+.glass {
+  background: color-mix(in oklab, var(--surface) 78%, transparent);
+  -webkit-backdrop-filter: saturate(150%) blur(14px);
+          backdrop-filter: saturate(150%) blur(14px);
+  border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+}
+
+/* Brand gradient text (yellow → warm amber → ink) */
+.text-gradient {
+  background-image: linear-gradient(115deg,
+    var(--c-brand-600) 0%,
+    var(--c-brand-400) 45%,
+    var(--c-brand-500) 65%,
+    var(--c-ink-700)   115%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+}
+
+/* Subtle animated dotted background (for hero, empty state) */
+.dot-grid {
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 12%, transparent) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+/* Larger min tap-target on coarse pointers (phones, tablets) */
+@media (pointer: coarse) {
+  button, a, [role="button"] { min-height: 40px; }
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Native form controls follow the theme (avoids the blinding white default in dark mode) */
+:root { color-scheme: light; }
+.dark { color-scheme: dark; }
+
+/* Custom scrollbar — subtle, matches surface tones */
+@media (pointer: fine) {
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 6px;
+    border: 2px solid var(--background);
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--c-neutral-400); }
 }

@@ -6,9 +6,47 @@ import type {
   RcboProperties,
   IsolatorProperties,
   VoltageRelayProperties,
+  ContactorProperties,
+  SurgeProtectorProperties,
+  TimerProperties,
+  MeterProperties,
+  SignalLampProperties,
+  SocketProperties,
+  ButtonProperties,
+  MotorStarterProperties,
+  BuzzerProperties,
+  DimmerProperties,
   GenericProperties,
   ElementProperties,
 } from '../types/panel'
+
+/**
+ * Symbol identifier — a stable key used by the ElementShape symbol registry.
+ * Adding a new element type only requires registering a new symbol here,
+ * keeping ElementShape closed for modification (OCP).
+ */
+export type SymbolId =
+  | 'mcb'
+  | 'rcd'
+  | 'rcbo'
+  | 'isolator'
+  | 'main_switch'
+  | 'cross'
+  | 'contactor'
+  | 'timer'
+  | 'surge_protector'
+  | 'neutral_bar'
+  | 'earth_bar'
+  | 'busbar'
+  | 'voltage_relay'
+  | 'kwh_meter'
+  | 'signal_lamp'
+  | 'modular_socket'
+  | 'push_button'
+  | 'motor_starter'
+  | 'buzzer'
+  | 'dimmer'
+  | 'blank'
 
 export interface ElementDef {
   id: ElementTypeId
@@ -21,6 +59,7 @@ export interface ElementDef {
   textColor: string
   description: string
   poles: number
+  symbolId: SymbolId
   defaultProperties: ElementProperties
 }
 
@@ -29,6 +68,20 @@ const VR_DEFAULT: VoltageRelayProperties = { kind: 'voltage_relay', minVoltage: 
 const RCD_DEFAULT: RcdProperties = { kind: 'rcd', rating: 63, sensitivity: 30, type: 'A' }
 const RCBO_DEFAULT: RcboProperties = { kind: 'rcbo', rating: 16, curve: 'C', sensitivity: 30, type: 'A', breakingCapacity: 6 }
 const ISO_DEFAULT: IsolatorProperties = { kind: 'isolator', rating: 63 }
+const CONTACTOR_DEFAULT: Omit<ContactorProperties, 'poles'> = {
+  kind: 'contactor', rating: 25, coilVoltage: 230,
+}
+const SPD_DEFAULT: SurgeProtectorProperties = {
+  kind: 'surge_protector', type: 'T2', nominalCurrent: 20, protectionLevel: 1.5, maxOperatingVoltage: 275,
+}
+const TIMER_DEFAULT: TimerProperties = { kind: 'timer', mode: 'weekly', rating: 16 }
+const METER_DEFAULT: MeterProperties = { kind: 'meter', rating: 63, threePhase: false, midClass: 'B' }
+const LAMP_DEFAULT: SignalLampProperties = { kind: 'signal_lamp', color: 'green', voltage: 230 }
+const SOCKET_DEFAULT: SocketProperties = { kind: 'socket', rating: 16, standard: 'schuko' }
+const BUTTON_DEFAULT: ButtonProperties = { kind: 'button', variant: 'push', color: 'green' }
+const MOTOR_DEFAULT: MotorStarterProperties = { kind: 'motor_starter', rating: 10, powerKw: 4, overloadClass: '10A' }
+const BUZZER_DEFAULT: BuzzerProperties = { kind: 'buzzer', voltage: 230 }
+const DIMMER_DEFAULT: DimmerProperties = { kind: 'dimmer', rating: 6, maxWatts: 400, loadType: 'led' }
 const GENERIC: GenericProperties = { kind: 'generic' }
 
 export const ELEMENT_DEFS: ElementDef[] = [
@@ -43,6 +96,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Single-pole miniature circuit breaker',
     poles: 1,
+    symbolId: 'mcb',
     defaultProperties: { ...MCB_DEFAULT },
   },
   {
@@ -56,6 +110,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Double-pole miniature circuit breaker',
     poles: 2,
+    symbolId: 'mcb',
     defaultProperties: { ...MCB_DEFAULT },
   },
   {
@@ -69,6 +124,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Triple-pole miniature circuit breaker',
     poles: 3,
+    symbolId: 'mcb',
     defaultProperties: { ...MCB_DEFAULT },
   },
   {
@@ -82,6 +138,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Four-pole miniature circuit breaker',
     poles: 4,
+    symbolId: 'mcb',
     defaultProperties: { ...MCB_DEFAULT },
   },
   {
@@ -95,6 +152,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Two-pole residual current device',
     poles: 2,
+    symbolId: 'rcd',
     defaultProperties: { ...RCD_DEFAULT },
   },
   {
@@ -108,6 +166,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Four-pole residual current device',
     poles: 4,
+    symbolId: 'rcd',
     defaultProperties: { ...RCD_DEFAULT },
   },
   {
@@ -121,6 +180,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Single-pole residual current breaker with overload',
     poles: 1,
+    symbolId: 'rcbo',
     defaultProperties: { ...RCBO_DEFAULT },
   },
   {
@@ -134,6 +194,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Double-pole residual current breaker with overload',
     poles: 2,
+    symbolId: 'rcbo',
     defaultProperties: { ...RCBO_DEFAULT },
   },
   {
@@ -147,6 +208,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Four-pole residual current breaker with overload',
     poles: 4,
+    symbolId: 'rcbo',
     defaultProperties: { ...RCBO_DEFAULT },
   },
   {
@@ -160,6 +222,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Single-pole isolating switch',
     poles: 1,
+    symbolId: 'isolator',
     defaultProperties: { ...ISO_DEFAULT },
   },
   {
@@ -173,6 +236,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Double-pole isolating switch',
     poles: 2,
+    symbolId: 'isolator',
     defaultProperties: { ...ISO_DEFAULT },
   },
   {
@@ -186,6 +250,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Triple-pole isolating switch',
     poles: 3,
+    symbolId: 'isolator',
     defaultProperties: { ...ISO_DEFAULT },
   },
   {
@@ -199,6 +264,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Four-pole isolating switch',
     poles: 4,
+    symbolId: 'isolator',
     defaultProperties: { ...ISO_DEFAULT },
   },
   {
@@ -212,6 +278,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Two-pole main isolator / supply disconnector',
     poles: 2,
+    symbolId: 'main_switch',
     defaultProperties: { ...ISO_DEFAULT, rating: 100 },
   },
   {
@@ -225,6 +292,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Four-pole main isolator / supply disconnector',
     poles: 4,
+    symbolId: 'main_switch',
     defaultProperties: { ...ISO_DEFAULT, rating: 100 },
   },
   {
@@ -238,7 +306,22 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: '2-pole distribution cross connector — fans L+N to multiple circuits',
     poles: 2,
+    symbolId: 'cross',
     defaultProperties: GENERIC,
+  },
+  {
+    id: 'contactor_2p',
+    label: '2P Contactor',
+    shortLabel: 'CTR',
+    category: 'switching',
+    defaultSlotWidth: 2,
+    defaultLabel: 'Contactor',
+    color: '#b45309',
+    textColor: '#ffffff',
+    description: 'Two-pole modular contactor',
+    poles: 2,
+    symbolId: 'contactor',
+    defaultProperties: { ...CONTACTOR_DEFAULT, poles: 2 },
   },
   {
     id: 'contactor_3p',
@@ -251,7 +334,22 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Three-pole contactor',
     poles: 3,
-    defaultProperties: { kind: 'generic', rating: 25 } as GenericProperties,
+    symbolId: 'contactor',
+    defaultProperties: { ...CONTACTOR_DEFAULT, poles: 3 },
+  },
+  {
+    id: 'contactor_4p',
+    label: '4P Contactor',
+    shortLabel: 'CTR',
+    category: 'switching',
+    defaultSlotWidth: 4,
+    defaultLabel: 'Contactor',
+    color: '#b45309',
+    textColor: '#ffffff',
+    description: 'Four-pole contactor',
+    poles: 4,
+    symbolId: 'contactor',
+    defaultProperties: { ...CONTACTOR_DEFAULT, poles: 4 },
   },
   {
     id: 'timer',
@@ -262,9 +360,10 @@ export const ELEMENT_DEFS: ElementDef[] = [
     defaultLabel: 'Timer',
     color: '#92400e',
     textColor: '#ffffff',
-    description: 'DIN rail time switch',
+    description: 'DIN rail time switch (astronomical / weekly / countdown / staircase)',
     poles: 1,
-    defaultProperties: GENERIC,
+    symbolId: 'timer',
+    defaultProperties: { ...TIMER_DEFAULT },
   },
   {
     id: 'surge_protector',
@@ -275,9 +374,108 @@ export const ELEMENT_DEFS: ElementDef[] = [
     defaultLabel: 'SPD',
     color: '#dc2626',
     textColor: '#ffffff',
-    description: 'Surge protection device',
+    description: 'Surge protection device (Type 1/2/3)',
     poles: 2,
-    defaultProperties: GENERIC,
+    symbolId: 'surge_protector',
+    defaultProperties: { ...SPD_DEFAULT },
+  },
+  {
+    id: 'kwh_meter',
+    label: 'kWh Meter',
+    shortLabel: 'kWh',
+    category: 'accessory',
+    defaultSlotWidth: 4,
+    defaultLabel: 'Meter',
+    color: '#0369a1',
+    textColor: '#ffffff',
+    description: 'Modular energy meter (MID)',
+    poles: 1,
+    symbolId: 'kwh_meter',
+    defaultProperties: { ...METER_DEFAULT },
+  },
+  {
+    id: 'signal_lamp',
+    label: 'Signal Lamp',
+    shortLabel: 'LAMP',
+    category: 'accessory',
+    defaultSlotWidth: 1,
+    defaultLabel: 'Lamp',
+    color: '#eab308',
+    textColor: '#000000',
+    description: 'Phase/status indicator lamp',
+    poles: 1,
+    symbolId: 'signal_lamp',
+    defaultProperties: { ...LAMP_DEFAULT },
+  },
+  {
+    id: 'modular_socket',
+    label: 'DIN Socket',
+    shortLabel: 'SOC',
+    category: 'accessory',
+    defaultSlotWidth: 3,
+    defaultLabel: 'Socket',
+    color: '#059669',
+    textColor: '#ffffff',
+    description: 'Modular DIN rail socket outlet',
+    poles: 2,
+    symbolId: 'modular_socket',
+    defaultProperties: { ...SOCKET_DEFAULT },
+  },
+  {
+    id: 'push_button',
+    label: 'Push Button',
+    shortLabel: 'BTN',
+    category: 'switching',
+    defaultSlotWidth: 1,
+    defaultLabel: 'Button',
+    color: '#0d9488',
+    textColor: '#ffffff',
+    description: 'Modular push button (control)',
+    poles: 1,
+    symbolId: 'push_button',
+    defaultProperties: { ...BUTTON_DEFAULT },
+  },
+  {
+    id: 'motor_starter',
+    label: 'Motor Starter',
+    shortLabel: 'MS',
+    category: 'protection',
+    defaultSlotWidth: 3,
+    defaultLabel: 'Motor',
+    color: '#65a30d',
+    textColor: '#ffffff',
+    description: 'Motor circuit breaker / thermal overload',
+    poles: 3,
+    symbolId: 'motor_starter',
+    defaultProperties: { ...MOTOR_DEFAULT },
+  },
+  {
+    id: 'buzzer',
+    label: 'Buzzer',
+    shortLabel: 'BUZ',
+    category: 'accessory',
+    defaultSlotWidth: 1,
+    defaultLabel: 'Buzzer',
+    color: '#7c2d12',
+    textColor: '#ffffff',
+    description: 'Modular DIN buzzer / chime',
+    poles: 1,
+    symbolId: 'buzzer',
+    defaultProperties: { ...BUZZER_DEFAULT },
+  },
+  {
+    id: 'dimmer',
+    label: 'Dimmer',
+    shortLabel: 'DIM',
+    category: 'switching',
+    defaultSlotWidth: 2,
+    defaultLabel: 'Dimmer',
+    color: '#9333ea',
+    textColor: '#ffffff',
+    description: 'Modular DIN dimmer — universal LED / halogen / incandescent',
+    poles: 1,
+    symbolId: 'dimmer',
+    defaultProperties: { ...DIMMER_DEFAULT },
   },
   {
     id: 'neutral_bar',
@@ -290,6 +488,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Neutral distribution bar',
     poles: 0,
+    symbolId: 'neutral_bar',
     defaultProperties: GENERIC,
   },
   {
@@ -303,6 +502,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Earth/PE distribution bar',
     poles: 0,
+    symbolId: 'earth_bar',
     defaultProperties: GENERIC,
   },
   {
@@ -316,6 +516,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Busbar connector',
     poles: 0,
+    symbolId: 'busbar',
     defaultProperties: GENERIC,
   },
   {
@@ -329,6 +530,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#ffffff',
     description: 'Voltage monitoring relay — trips on over/under-voltage',
     poles: 2,
+    symbolId: 'voltage_relay',
     defaultProperties: { ...VR_DEFAULT },
   },
   {
@@ -342,6 +544,7 @@ export const ELEMENT_DEFS: ElementDef[] = [
     textColor: '#374151',
     description: 'Blank filler module',
     poles: 0,
+    symbolId: 'blank',
     defaultProperties: GENERIC,
   },
 ]

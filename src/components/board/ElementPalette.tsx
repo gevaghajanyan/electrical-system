@@ -9,6 +9,8 @@ import { useActivePanel } from '@/lib/hooks/usePanelStore'
 import { panelStore } from '@/lib/store/panelStore'
 import { recentElementsStore } from '@/lib/store/recentElementsStore'
 import { hasSlotCollision } from '@/lib/utils/slotUtils'
+import { getElementLabel, getElementDescription } from '@/lib/utils/elementLabel'
+import { DeviceIcon } from './palette/DeviceIcon'
 
 const CATEGORY_ORDER: ElementCategory[] = ['protection', 'switching', 'distribution', 'accessory']
 
@@ -21,51 +23,38 @@ function PaletteTile({
   onDragStart: (id: string) => void
   onAdd: (id: string) => void
 }) {
+  const { t } = useTranslation()
+  const label = getElementLabel(def, t)
+  const desc = getElementDescription(def, t)
   return (
-    <div
+    <button
+      type="button"
       draggable
       onDragStart={() => onDragStart(def.id)}
       onClick={() => onAdd(def.id)}
-      title={`${def.label}\n${def.description}\nClick to place · Drag to position`}
-      className="group relative cursor-grab select-none rounded overflow-hidden border border-black/10 hover:border-white/40 hover:shadow-lg active:cursor-grabbing active:scale-95 transition-all duration-100"
-      style={{ backgroundColor: def.color }}
+      title={`${label}\n${desc}\n${t('palette.hint')}`}
+      className="group relative flex flex-col items-stretch cursor-grab select-none rounded-lg overflow-hidden border border-zinc-200 bg-white hover:border-blue-400 hover:shadow-md active:cursor-grabbing active:scale-95 transition-all duration-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:border-blue-500 touch-manipulation min-h-[92px]"
     >
-      {/* Header strip */}
-      <div
-        className="px-1 pt-1 pb-0.5 text-center"
-        style={{ backgroundColor: 'rgba(0,0,0,0.32)' }}
-      >
-        <span
-          className="block text-[9px] font-bold tracking-wide leading-none"
-          style={{ color: def.textColor }}
-        >
-          {def.shortLabel}
-        </span>
+      {/* Realistic SVG device face — ABB S200 / Schneider iC60 inspired */}
+      <div className="flex-1 min-h-0 flex items-center justify-center p-1.5 bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-800 dark:to-zinc-900">
+        <DeviceIcon def={def} label={label} className="max-h-[56px] w-auto drop-shadow" />
       </div>
 
-      {/* Body: label abbreviated */}
-      <div className="flex items-center justify-center px-1 py-1.5 min-h-[24px]">
-        <span
-          className="text-[9px] font-medium leading-tight text-center"
-          style={{ color: def.textColor, opacity: 0.85 }}
-        >
-          {def.label.replace(/miniature circuit breaker/i, 'MCB').replace(/residual current/i, 'RC')}
-        </span>
+      {/* Caption */}
+      <div className="border-t border-zinc-100 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-1.5 py-1">
+        <div className="flex items-center justify-between gap-1">
+          <span className="truncate text-[10px] font-semibold text-zinc-700 dark:text-zinc-200 leading-tight">
+            {label}
+          </span>
+          <span
+            className="shrink-0 rounded px-1 py-[1px] text-[9px] font-bold tabular-nums text-white"
+            style={{ backgroundColor: def.color }}
+          >
+            {def.poles > 0 ? `${def.poles}P` : `${def.defaultSlotWidth}W`}
+          </span>
+        </div>
       </div>
-
-      {/* Footer: pole × width badge */}
-      <div
-        className="px-1 pb-0.5 text-center"
-        style={{ backgroundColor: 'rgba(0,0,0,0.18)' }}
-      >
-        <span
-          className="text-[8px] leading-none tabular-nums"
-          style={{ color: def.textColor, opacity: 0.7 }}
-        >
-          {def.poles > 0 ? `${def.poles}P` : '—'} · {def.defaultSlotWidth}W
-        </span>
-      </div>
-    </div>
+    </button>
   )
 }
 
@@ -128,14 +117,20 @@ export function ElementPalette({ onDragStart, className = '' }: ElementPalettePr
   const q = search.toLowerCase()
   const grouped = CATEGORY_ORDER.reduce<Record<ElementCategory, ElementDef[]>>(
     (acc, cat) => {
-      acc[cat] = ELEMENT_DEFS.filter(
-        (d) =>
-          d.category === cat &&
-          (!q ||
-            d.label.toLowerCase().includes(q) ||
-            d.shortLabel.toLowerCase().includes(q) ||
-            d.description.toLowerCase().includes(q))
-      )
+      acc[cat] = ELEMENT_DEFS.filter((d) => {
+        if (d.category !== cat) return false
+        if (!q) return true
+        // Search across both the English def and the current-locale translation
+        const label = getElementLabel(d, t).toLowerCase()
+        const desc = getElementDescription(d, t).toLowerCase()
+        return (
+          label.includes(q) ||
+          desc.includes(q) ||
+          d.label.toLowerCase().includes(q) ||
+          d.shortLabel.toLowerCase().includes(q) ||
+          d.description.toLowerCase().includes(q)
+        )
+      })
       return acc
     },
     { protection: [], switching: [], distribution: [], accessory: [] }
@@ -161,7 +156,7 @@ export function ElementPalette({ onDragStart, className = '' }: ElementPalettePr
           <div>
             <div className="px-1 py-0.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                Recent
+                {t('palette.recent')}
               </span>
             </div>
             <div className="mt-1.5 grid grid-cols-2 gap-1.5">

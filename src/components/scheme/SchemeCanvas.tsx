@@ -3,8 +3,11 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { schemeStore } from '@/lib/store/schemeStore'
 import { useSchemeStore } from '@/lib/hooks/useSchemeStore'
+import { usePanelStore } from '@/lib/hooks/usePanelStore'
 import { SCHEME_DEFS } from '@/lib/constants/schemeDefs'
 import type { Scheme, SchemeNode, SchemePort, SchemeNodeType } from '@/lib/types/scheme'
+import { renderSchemeSymbol } from './symbols'
+import { useCanvasTouchGestures } from '@/lib/hooks/useCanvasTouchGestures'
 
 const DEFAULT_GRID = 24
 
@@ -48,175 +51,7 @@ function orthogonalPath(x1: number, y1: number, x2: number, y2: number): string 
   return `M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`
 }
 
-// ── Node symbols ─────────────────────────────────────────────────────────────
-
-function SwitchSymbol() {
-  return (
-    <g stroke="#ffffff" strokeWidth={1.5} fill="none">
-      <circle cx={8} cy={24} r={3} />
-      <circle cx={62} cy={24} r={3} />
-      <line x1={11} y1={24} x2={50} y2={14} />
-      <circle cx={50} cy={14} r={2} fill="#ffffff" />
-    </g>
-  )
-}
-
-function LampSymbol() {
-  return (
-    <g stroke="#ffffff" strokeWidth={1.5} fill="none">
-      <circle cx={32} cy={32} r={16} />
-      <line x1={20.7} y1={20.7} x2={43.3} y2={43.3} />
-      <line x1={43.3} y1={20.7} x2={20.7} y2={43.3} />
-    </g>
-  )
-}
-
-function LedSymbol() {
-  return (
-    <g stroke="#ffffff" strokeWidth={1.5} fill="none">
-      {/* Triangle */}
-      <polygon points="22,16 22,48 50,32" fill="rgba(255,255,255,0.15)" stroke="#ffffff" strokeWidth={1.5} />
-      {/* Vertical bar at right */}
-      <line x1={50} y1={16} x2={50} y2={48} />
-      {/* Light emission lines */}
-      <line x1={54} y1={18} x2={60} y2={12} />
-      <line x1={54} y1={24} x2={62} y2={18} />
-    </g>
-  )
-}
-
-function TransformerSymbol() {
-  // Wavy lines = 3 bumps using quadratic bezier on each side
-  const leftBumps = 'M 28 20 Q 22 29 28 34 Q 34 39 28 48 Q 22 57 28 60'
-  const rightBumps = 'M 100 20 Q 106 29 100 34 Q 94 39 100 48 Q 106 57 100 60'
-  return (
-    <g stroke="#ffffff" strokeWidth={1.5} fill="none">
-      <path d={leftBumps} />
-      <path d={rightBumps} />
-      <line x1={64} y1={16} x2={64} y2={64} strokeDasharray="3 2" />
-    </g>
-  )
-}
-
-function PowerAcSymbol() {
-  return (
-    <g fill="none">
-      <circle cx={40} cy={26} r={14} stroke="#ffffff" strokeWidth={1.5} />
-      <text
-        x={40}
-        y={31}
-        textAnchor="middle"
-        fontSize={14}
-        fontWeight="bold"
-        fill="#ffffff"
-        fontFamily="serif"
-      >
-        ~
-      </text>
-      <text
-        x={40}
-        y={54}
-        textAnchor="middle"
-        fontSize={9}
-        fill="rgba(255,255,255,0.8)"
-        fontFamily="sans-serif"
-      >
-        230V
-      </text>
-    </g>
-  )
-}
-
-function SocketOutletSymbol() {
-  return (
-    <g stroke="#ffffff" strokeWidth={1.5} fill="none">
-      {/* Outer circle */}
-      <circle cx={36} cy={28} r={20} />
-      {/* Horizontal centre line */}
-      <line x1={18} y1={28} x2={54} y2={28} />
-      {/* Socket holes */}
-      <line x1={28} y1={32} x2={28} y2={42} strokeWidth={2.5} strokeLinecap="round" />
-      <line x1={44} y1={32} x2={44} y2={42} strokeWidth={2.5} strokeLinecap="round" />
-    </g>
-  )
-}
-
-function PushButtonSymbol() {
-  return (
-    <g stroke="#ffffff" strokeWidth={1.5} fill="none">
-      {/* Contact dots */}
-      <circle cx={10} cy={24} r={2.5} fill="#ffffff" />
-      <circle cx={50} cy={24} r={2.5} fill="#ffffff" />
-      {/* Left wire segment */}
-      <line x1={12} y1={24} x2={26} y2={24} />
-      {/* Button body (rect) */}
-      <rect x={26} y={20} width={12} height={8} rx={2} fill="rgba(255,255,255,0.2)" stroke="#ffffff" strokeWidth={1.5} />
-      {/* Right wire segment */}
-      <line x1={38} y1={24} x2={52} y2={24} />
-      {/* Press-direction arrow */}
-      <line x1={32} y1={14} x2={32} y2={20} strokeWidth={1} />
-      <polyline points="29,18 32,20 35,18" strokeWidth={1} strokeLinejoin="round" />
-    </g>
-  )
-}
-
-function Switch2WaySymbol() {
-  return (
-    <g stroke="#ffffff" strokeWidth={1.5} fill="none">
-      {/* Common terminal dot */}
-      <circle cx={10} cy={28} r={3} fill="#ffffff" />
-      {/* Lever in position A (upper) */}
-      <line x1={13} y1={28} x2={66} y2={18} />
-      {/* Output terminal dots */}
-      <circle cx={72} cy={16} r={3} fill="#ffffff" />
-      <circle cx={72} cy={40} r={3} fill="#ffffff" />
-      {/* Output wires */}
-      <line x1={69} y1={16} x2={80} y2={16} />
-      <line x1={69} y1={40} x2={80} y2={40} />
-    </g>
-  )
-}
-
-function MotorSymbol() {
-  return (
-    <g stroke="#ffffff" strokeWidth={1.5} fill="none">
-      {/* Large circle */}
-      <circle cx={36} cy={36} r={26} />
-      {/* "M" label */}
-      <text
-        x={36}
-        y={42}
-        textAnchor="middle"
-        fontSize={20}
-        fontWeight="bold"
-        fill="#ffffff"
-        fontFamily="sans-serif"
-        style={{ pointerEvents: 'none', userSelect: 'none' }}
-      >
-        M
-      </text>
-      {/* Three input lines at top */}
-      <line x1={20} y1={10} x2={20} y2={16} strokeWidth={2} />
-      <line x1={36} y1={10} x2={36} y2={16} strokeWidth={2} />
-      <line x1={52} y1={10} x2={52} y2={16} strokeWidth={2} />
-    </g>
-  )
-}
-
-function NodeSymbol({ type }: { type: SchemeNodeType }) {
-  switch (type) {
-    case 'switch_spst':   return <SwitchSymbol />
-    case 'lamp_230':      return <LampSymbol />
-    case 'led_220':       return <LedSymbol />
-    case 'transformer_sd': return <TransformerSymbol />
-    case 'power_ac':      return <PowerAcSymbol />
-    case 'junction':      return null
-    case 'socket_outlet': return <SocketOutletSymbol />
-    case 'push_button':   return <PushButtonSymbol />
-    case 'switch_2way':   return <Switch2WaySymbol />
-    case 'motor':         return <MotorSymbol />
-  }
-}
+// Node symbols now live in ./symbols.tsx (IEC-style, unified stroke palette).
 
 // ── Main canvas ───────────────────────────────────────────────────────────────
 
@@ -224,6 +59,9 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
   const snap = (v: number) => snapTo(v, gridSize)
   const storeState = useSchemeStore()
   const { selectedNodeId, selectedWireId, connectingFrom } = storeState
+  const { panels } = usePanelStore()
+
+  const allPanelElements = panels.flatMap((p) => p.elements)
 
   const svgRef = useRef<SVGSVGElement>(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
@@ -301,6 +139,17 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
     },
     [zoom, onZoomChange]
   )
+
+  // Mobile touch — pinch-to-zoom + two-finger pan on the SVG surface.
+  // Single-finger touches keep working for node drag / port taps.
+  useCanvasTouchGestures(svgRef, {
+    onPinch: (delta) => {
+      onZoomChange(Math.max(0.2, Math.min(4, zoom * delta)))
+    },
+    onPan: (dx, dy) => {
+      setPan((p) => ({ x: p.x + dx, y: p.y + dy }))
+    },
+  })
 
   // ── Mouse events ──────────────────────────────────────────────────────────
 
@@ -494,36 +343,52 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
           {/* Selection outline */}
           {isSelected && (
             <rect
-              x={-3}
-              y={-3}
-              width={def.width + 6}
-              height={def.height + 6}
-              rx={8}
+              x={-4}
+              y={-4}
+              width={def.width + 8}
+              height={def.height + 8}
+              rx={10}
               fill="none"
-              stroke="#fbbf24"
-              strokeWidth={2}
+              stroke="#f2bc2e"
+              strokeWidth={2.5}
               style={{ pointerEvents: 'none' }}
             />
           )}
-          {/* Body */}
-          <rect
-            x={0}
-            y={0}
-            width={def.width}
-            height={def.height}
-            rx={5}
-            fill={def.color}
-          />
-          {/* Symbol */}
-          <NodeSymbol type={node.type} />
-
-          {/* Panel link badge */}
-          {node.linkedPanelElementId && (
-            <g transform={`translate(${def.width - 9}, 9)`} style={{ pointerEvents: 'none' }}>
-              <circle r={7} fill="#3b82f6" stroke="white" strokeWidth={1.5} />
-              <text x={0} y={3.5} textAnchor="middle" fontSize={9} fontWeight="bold" fill="white" fontFamily="sans-serif">P</text>
-            </g>
+          {/* Card body — light warm surface, subtle shadow via colored border */}
+          {node.type !== 'junction' && (
+            <>
+              <rect
+                x={0}
+                y={0}
+                width={def.width}
+                height={def.height}
+                rx={8}
+                fill="#ffffff"
+                stroke={def.color}
+                strokeWidth={1.4}
+                opacity={0.95}
+              />
+              {/* Accent top strip — colored to keep type recognition */}
+              <rect x={0} y={0} width={def.width} height={3} rx={2} fill={def.color} />
+            </>
           )}
+          {/* IEC-style symbol */}
+          {renderSchemeSymbol(node.type, { rotation: node.rotation })}
+
+          {/* Panel link badge — blue if in sync, amber if label differs */}
+          {node.linkedPanelElementId && (() => {
+            const linked = allPanelElements.find((e) => e.id === node.linkedPanelElementId)
+            const outOfSync = linked && node.label && linked.label && node.label !== linked.label
+            const badgeColor = !linked ? '#9ca3af' : outOfSync ? '#f59e0b' : '#3b82f6'
+            const title = !linked ? 'Linked element not found' : outOfSync ? `Label mismatch: panel="${linked.label}"` : `Linked to ${linked.label || linked.typeId}`
+            return (
+              <g transform={`translate(${def.width - 9}, 9)`} style={{ pointerEvents: 'none' }}>
+                <title>{title}</title>
+                <circle r={7} fill={badgeColor} stroke="white" strokeWidth={1.5} />
+                <text x={0} y={3.5} textAnchor="middle" fontSize={9} fontWeight="bold" fill="white" fontFamily="sans-serif">P</text>
+              </g>
+            )
+          })()}
         </g>
 
         {/* Label — always upright, below the node's bounding box centre */}
@@ -639,7 +504,7 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
     <div className="relative h-full w-full">
     <svg
       ref={svgRef}
-      className="h-full w-full select-none bg-zinc-50 dark:bg-zinc-950"
+      className="h-full w-full select-none touch-none bg-zinc-50 dark:bg-zinc-950"
       onWheel={handleWheel}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

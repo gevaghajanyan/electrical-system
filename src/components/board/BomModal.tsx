@@ -1,8 +1,12 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import type { Panel, PanelElement } from '@/lib/types/panel'
 import { ELEMENT_DEFS_MAP } from '@/lib/constants/elementDefs'
+import { getElementFullSpec } from '@/lib/utils/elementDisplay'
+import { getElementLabel } from '@/lib/utils/elementLabel'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 
@@ -13,26 +17,16 @@ interface BomRow {
   elements: PanelElement[]
 }
 
-function getRatingLabel(el: PanelElement): string {
-  const p = el.properties
-  if (p.kind === 'mcb') return `${p.curve}${p.rating}A / ${p.breakingCapacity}kA`
-  if (p.kind === 'rcbo') return `${p.curve}${p.rating}A / ${p.sensitivity}mA`
-  if (p.kind === 'rcd') return `${p.rating}A / ${p.sensitivity}mA`
-  if (p.kind === 'isolator') return `${p.rating}A`
-  if (p.kind === 'voltage_relay') return `${p.minVoltage}–${p.maxVoltage}V`
-  return '—'
-}
-
-function buildBom(panel: Panel): BomRow[] {
+function buildBom(panel: Panel, t: TFunction): BomRow[] {
   const groups = new Map<string, BomRow>()
 
   for (const el of panel.elements) {
     const def = ELEMENT_DEFS_MAP.get(el.typeId)
     if (!def) continue
-    const rating = getRatingLabel(el)
+    const rating = getElementFullSpec(el)
     const key = `${el.typeId}|${rating}`
     if (!groups.has(key)) {
-      groups.set(key, { typeId: el.typeId, typeLabel: def.label, rating, elements: [] })
+      groups.set(key, { typeId: el.typeId, typeLabel: getElementLabel(def, t), rating, elements: [] })
     }
     groups.get(key)!.elements.push(el)
   }
@@ -67,7 +61,8 @@ interface BomModalProps {
 }
 
 export function BomModal({ panel, open, onClose }: BomModalProps) {
-  const rows = useMemo(() => buildBom(panel), [panel])
+  const { t } = useTranslation()
+  const rows = useMemo(() => buildBom(panel, t), [panel, t])
 
   const totalElements = rows.reduce((s, r) => s + r.elements.length, 0)
   const totalSlots = panel.elements.reduce((s, e) => s + e.slotWidth, 0)

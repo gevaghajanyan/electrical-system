@@ -1,7 +1,8 @@
 'use client'
 
-import { use, useState, useRef, useEffect, useCallback } from 'react'
+import { Suspense, useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
 import { panelStore } from '@/lib/store/panelStore'
 import { usePanelStore } from '@/lib/hooks/usePanelStore'
@@ -17,13 +18,19 @@ import { SchematicView } from '@/components/board/SchematicView'
 import { ConnectionMatrix } from '@/components/board/ConnectionMatrix'
 import { SaveStatusIndicator } from '@/components/SaveStatusIndicator'
 import { ShortcutModal } from '@/components/ShortcutModal'
+import { BottomSheet } from '@/components/ui/BottomSheet'
 
-export default function PanelEditorPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = use(params)
+export default function PanelEditorPage() {
+  return (
+    <Suspense fallback={null}>
+      <PanelEditorInner />
+    </Suspense>
+  )
+}
+
+function PanelEditorInner() {
+  const searchParams = useSearchParams()
+  const id = searchParams.get('id') ?? ''
   const { t } = useTranslation()
   const { panels, selectedElementId } = usePanelStore()
   const panel = panels.find((p) => p.id === id) ?? null
@@ -35,6 +42,8 @@ export default function PanelEditorPage({
   const [shortcutModalOpen, setShortcutModalOpen] = useState(false)
   const [annotationMode, setAnnotationMode] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [mobilePaletteOpen, setMobilePaletteOpen] = useState(false)
+  const [mobilePropsOpen, setMobilePropsOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -289,8 +298,8 @@ export default function PanelEditorPage({
 
       {/* Main layout */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Element palette (left sidebar) */}
-        <aside className="w-52 shrink-0 flex flex-col overflow-hidden border-r border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        {/* Element palette (left sidebar) — hidden on mobile, use bottom sheet instead */}
+        <aside className="hidden md:flex w-52 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
           <ElementPalette onDragStart={handleDragStartFromPalette} />
         </aside>
 
@@ -435,11 +444,60 @@ export default function PanelEditorPage({
           )}
         </div>
 
-        {/* Properties panel (right sidebar) */}
-        <aside className="w-56 shrink-0 flex flex-col overflow-hidden border-l border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        {/* Properties panel (right sidebar) — hidden on mobile, use bottom sheet */}
+        <aside className="hidden md:flex w-56 shrink-0 flex-col overflow-hidden border-l border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
           <PropertiesPanel />
         </aside>
       </div>
+
+      {/* Mobile FAB toolbar (visible below md) */}
+      <div
+        className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-full border border-zinc-200 bg-white/95 px-2 py-1.5 shadow-lg backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/95"
+        style={{ marginBottom: 'env(safe-area-inset-bottom, 0)' }}
+      >
+        <button
+          onClick={() => setMobilePaletteOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-3 py-2 text-xs font-semibold text-white active:scale-95 transition-transform touch-manipulation min-h-[40px]"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          {t('palette.title')}
+        </button>
+        <button
+          onClick={() => setMobilePropsOpen(true)}
+          disabled={!selectedElementId}
+          className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 active:scale-95 transition-transform touch-manipulation min-h-[40px]"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          {t('properties.label')}
+        </button>
+      </div>
+
+      {/* Mobile bottom sheets */}
+      <BottomSheet
+        open={mobilePaletteOpen}
+        onClose={() => setMobilePaletteOpen(false)}
+        title={t('palette.title')}
+        heightPct={80}
+      >
+        <ElementPalette
+          onDragStart={(id) => {
+            handleDragStartFromPalette(id)
+            setMobilePaletteOpen(false)
+          }}
+        />
+      </BottomSheet>
+      <BottomSheet
+        open={mobilePropsOpen && !!selectedElementId}
+        onClose={() => setMobilePropsOpen(false)}
+        title={t('properties.label')}
+        heightPct={80}
+      >
+        <PropertiesPanel />
+      </BottomSheet>
 
       <input
         ref={fileInputRef}

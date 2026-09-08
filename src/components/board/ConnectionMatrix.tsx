@@ -2,14 +2,7 @@
 
 import type { Panel } from '@/lib/types/panel'
 import { ELEMENT_DEFS_MAP } from '@/lib/constants/elementDefs'
-
-const CIRCUIT_PALETTE = ['#ef4444','#f97316','#f59e0b','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
-
-function circuitTagColor(tag: string): string {
-  let h = 0
-  for (let i = 0; i < tag.length; i++) h = tag.charCodeAt(i) + ((h << 5) - h)
-  return CIRCUIT_PALETTE[Math.abs(h) % CIRCUIT_PALETTE.length]
-}
+import { circuitTagColor } from '@/lib/utils/circuitTagColor'
 
 interface Props { panel: Panel }
 

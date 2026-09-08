@@ -104,10 +104,10 @@ export function RailRow({ rail, railIndex, elements, draggingTypeId, dropHighlig
           x={0}
           y={TRACK_Y + TRACK_H + 14}
           width={rowW}
-          text={`${rail.label} — ${usedSlots}/${rail.slotCount}`}
+          text={`${rail.label} — ${usedSlots}/${rail.slotCount}${usedSlots >= rail.slotCount ? ' ⚠ FULL' : utilizationPct >= 0.8 ? ' ●' : ''}`}
           fontSize={8}
           fontStyle="bold"
-          fill={isDark ? '#71717a' : '#64748b'}
+          fill={usedSlots >= rail.slotCount ? '#ef4444' : utilizationPct >= 0.8 ? '#f59e0b' : (isDark ? '#71717a' : '#64748b')}
           align="center"
           listening={false}
         />

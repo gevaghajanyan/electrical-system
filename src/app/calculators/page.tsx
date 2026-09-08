@@ -1,275 +1,134 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Input } from '@/components/ui/Input'
-import { Label } from '@/components/ui/Label'
-import { Select } from '@/components/ui/Select'
-import { Badge } from '@/components/ui/Badge'
+import { CALCULATORS, type CalcDef, type CalcGroup } from '@/components/calculators/registry'
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100
-}
+const GROUPS: CalcGroup[] = ['basic', 'installation', 'power', 'electronics', 'utility']
 
-// ── Cable Size Calculator ────────────────────────────────────────────────────
-
-const CABLE_SIZES = [1, 1.5, 2.5, 4, 6, 10, 16, 25, 35, 50]
-const CABLE_CAPACITY: Record<number, number> = {
-  1: 10, 1.5: 13, 2.5: 18, 4: 24, 6: 31, 10: 42, 16: 57, 25: 75, 35: 92, 50: 112,
-}
-
-function CableSizeCalc() {
-  const { t } = useTranslation()
-  const [current, setCurrent] = useState(16)
-  const [derating, setDerating] = useState(1.0)
-
-  const required = round2(current / derating)
-  const recommended = CABLE_SIZES.find((s) => CABLE_CAPACITY[s] >= required) ?? 50
-
+function CalcTile({
+  calc,
+  active,
+  onClick,
+  label,
+  desc,
+}: {
+  calc: CalcDef
+  active: boolean
+  onClick: () => void
+  label: string
+  desc: string
+}) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-800">
-      <h2 className="mb-4 text-sm font-semibold text-zinc-800 dark:text-zinc-200">{t('calculators.cableSize.title')}</h2>
-      <div className="space-y-3">
-        <div>
-          <Label htmlFor="cs-current">{t('calculators.cableSize.designCurrent')}</Label>
-          <Input
-            id="cs-current"
-            type="number"
-            min={0.1}
-            step={0.1}
-            value={current}
-            onChange={(e) => setCurrent(Number(e.target.value))}
-          />
-        </div>
-        <div>
-          <Label htmlFor="cs-derating">{t('calculators.cableSize.deratingFactor')}</Label>
-          <Input
-            id="cs-derating"
-            type="number"
-            min={0.1}
-            max={1}
-            step={0.01}
-            value={derating}
-            onChange={(e) => setDerating(Number(e.target.value))}
-          />
-          <p className="mt-0.5 text-xs text-zinc-400">{t('calculators.cableSize.deratingHint')}</p>
-        </div>
-        <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950">
-          <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('calculators.cableSize.effectiveCurrent')}</p>
-          <p className="text-lg font-bold text-blue-700 dark:text-blue-400">{required} A</p>
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs text-zinc-500">{t('calculators.cableSize.recommended')}</span>
-            <Badge variant="info">{recommended} mm²</Badge>
-            <span className="text-xs text-zinc-400">{t('calculators.cableSize.capacity', { cap: CABLE_CAPACITY[recommended] })}</span>
-          </div>
-        </div>
+    <button
+      type="button"
+      onClick={onClick}
+      title={desc}
+      className={`group flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all touch-manipulation min-h-[62px] ${
+        active
+          ? 'border-blue-400 bg-blue-50 shadow-sm dark:border-blue-500 dark:bg-blue-950/40'
+          : 'border-zinc-200 bg-white hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800/70 dark:hover:border-blue-500'
+      }`}
+    >
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+        active
+          ? 'bg-blue-500 text-white'
+          : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400 group-hover:bg-blue-100 group-hover:text-blue-600'
+      }`}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          {calc.iconPath}
+        </svg>
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">{label}</p>
+        <p className="mt-0.5 line-clamp-2 text-[11px] text-zinc-500 dark:text-zinc-400">{desc}</p>
       </div>
-    </div>
+    </button>
   )
 }
-
-// ── Voltage Drop Calculator ──────────────────────────────────────────────────
-
-const RESISTIVITY: Record<'copper' | 'aluminium', number> = {
-  copper: 0.0175,
-  aluminium: 0.028,
-}
-
-function VoltageDropCalc() {
-  const { t } = useTranslation()
-  const [current, setCurrent] = useState(16)
-  const [length, setLength] = useState(20)
-  const [csa, setCsa] = useState(2.5)
-  const [voltage, setVoltage] = useState(230)
-  const [material, setMaterial] = useState<'copper' | 'aluminium'>('copper')
-
-  const rho = RESISTIVITY[material]
-  const resistance = round2((2 * rho * length) / csa)
-  const drop = round2(current * resistance)
-  const percent = round2((drop / voltage) * 100)
-  const isOk = percent <= 3
-
-  return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-800">
-      <h2 className="mb-4 text-sm font-semibold text-zinc-800 dark:text-zinc-200">{t('calculators.voltageDrop.title')}</h2>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label htmlFor="vd-current">{t('calculators.voltageDrop.current')}</Label>
-            <Input id="vd-current" type="number" min={0} value={current} onChange={(e) => setCurrent(Number(e.target.value))} />
-          </div>
-          <div>
-            <Label htmlFor="vd-length">{t('calculators.voltageDrop.length')}</Label>
-            <Input id="vd-length" type="number" min={0} value={length} onChange={(e) => setLength(Number(e.target.value))} />
-          </div>
-          <div>
-            <Label htmlFor="vd-csa">{t('calculators.voltageDrop.csa')}</Label>
-            <Input id="vd-csa" type="number" min={0.1} step={0.5} value={csa} onChange={(e) => setCsa(Number(e.target.value))} />
-          </div>
-          <div>
-            <Label htmlFor="vd-voltage">{t('calculators.voltageDrop.supplyVoltage')}</Label>
-            <Select id="vd-voltage" value={voltage} onChange={(e) => setVoltage(Number(e.target.value))}>
-              <option value={230}>230V</option>
-              <option value={400}>400V</option>
-            </Select>
-          </div>
-        </div>
-        <div>
-          <Label htmlFor="vd-material">{t('calculators.voltageDrop.material')}</Label>
-          <Select id="vd-material" value={material} onChange={(e) => setMaterial(e.target.value as 'copper' | 'aluminium')}>
-            <option value="copper">{t('calculators.voltageDrop.copper')}</option>
-            <option value="aluminium">{t('calculators.voltageDrop.aluminium')}</option>
-          </Select>
-        </div>
-        <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900">
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div>
-              <p className="text-xs text-zinc-400">{t('calculators.voltageDrop.resistance')}</p>
-              <p className="font-semibold text-zinc-800 dark:text-zinc-200">{resistance} Ω</p>
-            </div>
-            <div>
-              <p className="text-xs text-zinc-400">{t('calculators.voltageDrop.drop')}</p>
-              <p className="font-semibold text-zinc-800 dark:text-zinc-200">{drop} V</p>
-            </div>
-            <div>
-              <p className="text-xs text-zinc-400">{t('calculators.voltageDrop.percentDrop')}</p>
-              <p className={`font-semibold ${isOk ? 'text-green-600' : 'text-red-600'}`}>{percent}%</p>
-            </div>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5">
-            <Badge variant={isOk ? 'success' : 'error'}>
-              {isOk ? t('calculators.voltageDrop.acceptable') : t('calculators.voltageDrop.exceeds')}
-            </Badge>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Earthing / Fault Current Calculator ─────────────────────────────────────
-
-function FaultCurrentCalc() {
-  const { t } = useTranslation()
-  const [voltage, setVoltage] = useState(230)
-  const [impedance, setImpedance] = useState(0.35)
-
-  const faultCurrent = impedance > 0 ? round2(voltage / impedance) : 0
-
-  return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-800">
-      <h2 className="mb-4 text-sm font-semibold text-zinc-800 dark:text-zinc-200">{t('calculators.faultCurrent.title')}</h2>
-      <div className="space-y-3">
-        <div>
-          <Label htmlFor="fc-voltage">{t('calculators.faultCurrent.nominalVoltage')}</Label>
-          <Select id="fc-voltage" value={voltage} onChange={(e) => setVoltage(Number(e.target.value))}>
-            <option value={230}>{t('calculators.faultCurrent.voltage230')}</option>
-            <option value={400}>{t('calculators.faultCurrent.voltage400')}</option>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="fc-zs">{t('calculators.faultCurrent.impedance')}</Label>
-          <Input
-            id="fc-zs"
-            type="number"
-            min={0.001}
-            step={0.01}
-            value={impedance}
-            onChange={(e) => setImpedance(Number(e.target.value))}
-          />
-        </div>
-        <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-950">
-          <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('calculators.faultCurrent.formula')}</p>
-          <p className="mt-1 text-lg font-bold text-amber-700 dark:text-amber-400">
-            {faultCurrent} A
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            {faultCurrent > 0 ? `≈ ${round2(faultCurrent / 1000)} kA` : ''}
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Power / Load Calculator ──────────────────────────────────────────────────
-
-function PowerCalc() {
-  const { t } = useTranslation()
-  const [power, setPower] = useState(3000)
-  const [pf, setPf] = useState(0.95)
-  const [phases, setPhases] = useState<1 | 3>(1)
-  const [voltage, setVoltage] = useState(230)
-
-  const apparent = round2(power / pf)
-  const current = phases === 1
-    ? round2(apparent / voltage)
-    : round2(apparent / (Math.sqrt(3) * voltage))
-
-  return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-800">
-      <h2 className="mb-4 text-sm font-semibold text-zinc-800 dark:text-zinc-200">{t('calculators.power.title')}</h2>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label htmlFor="pw-power">{t('calculators.power.activePower')}</Label>
-            <Input id="pw-power" type="number" min={0} value={power} onChange={(e) => setPower(Number(e.target.value))} />
-          </div>
-          <div>
-            <Label htmlFor="pw-pf">{t('calculators.power.powerFactor')}</Label>
-            <Input id="pw-pf" type="number" min={0.01} max={1} step={0.01} value={pf} onChange={(e) => setPf(Number(e.target.value))} />
-          </div>
-          <div>
-            <Label htmlFor="pw-phases">{t('calculators.power.supply')}</Label>
-            <Select id="pw-phases" value={phases} onChange={(e) => setPhases(Number(e.target.value) as 1 | 3)}>
-              <option value={1}>{t('calculators.power.singlePhase')}</option>
-              <option value={3}>{t('calculators.power.threePhase')}</option>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="pw-voltage">{t('calculators.power.voltage')}</Label>
-            <Select id="pw-voltage" value={voltage} onChange={(e) => setVoltage(Number(e.target.value))}>
-              <option value={230}>230V</option>
-              <option value={400}>400V</option>
-            </Select>
-          </div>
-        </div>
-        <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900">
-          <div className="grid grid-cols-2 gap-3 text-center">
-            <div>
-              <p className="text-xs text-zinc-400">{t('calculators.power.apparentPower')}</p>
-              <p className="font-semibold text-zinc-800 dark:text-zinc-200">{apparent} VA</p>
-            </div>
-            <div>
-              <p className="text-xs text-zinc-400">{t('calculators.power.lineCurrent')}</p>
-              <p className="font-semibold text-zinc-800 dark:text-zinc-200">{current} A</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CalculatorsPage() {
   const { t } = useTranslation()
+  const [activeId, setActiveId] = useState(CALCULATORS[0].id)
+  const [search, setSearch] = useState('')
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return CALCULATORS
+    return CALCULATORS.filter((c) => {
+      const label = t(c.titleKey).toLowerCase()
+      const desc = t(c.descKey).toLowerCase()
+      return label.includes(q) || desc.includes(q) || c.id.includes(q)
+    })
+  }, [search, t])
+
+  const active = CALCULATORS.find((c) => c.id === activeId) ?? CALCULATORS[0]
+  const ActiveComp = active.Component
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{t('calculators.title')}</h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {t('calculators.subtitle')}
+    <div className="flex flex-1 flex-col">
+      {/* Hero */}
+      <section className="relative overflow-hidden">
+        <div className="dot-grid absolute inset-0 opacity-40" aria-hidden />
+        <div className="relative mx-auto w-full max-w-7xl px-4 pt-10 pb-6 sm:px-6">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
+            <span className="text-gradient">{t('calc.pageTitle')}</span>
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400 sm:text-base">
+            {t('calc.pageSubtitle')}
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <CableSizeCalc />
-          <VoltageDropCalc />
-          <FaultCurrentCalc />
-          <PowerCalc />
+      </section>
+
+      <div className="mx-auto w-full max-w-7xl flex-1 px-4 pb-16 sm:px-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
+          {/* Sidebar registry — sticky on desktop, scrollable within its own height */}
+          <aside className="space-y-3 lg:sticky lg:top-16 lg:self-start lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto lg:pr-1 lg:-mr-1">
+            <div className="relative">
+              <svg
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('calc.searchPlaceholder')}
+                className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-9 pr-3 text-sm text-zinc-800 shadow-sm placeholder:text-zinc-400 focus:border-blue-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800/70 dark:text-zinc-100"
+              />
+            </div>
+
+            {GROUPS.map((group) => {
+              const items = filtered.filter((c) => c.group === group)
+              if (items.length === 0) return null
+              return (
+                <div key={group}>
+                  <h3 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                    {t(`calc.groups.${group}`)}
+                  </h3>
+                  <div className="space-y-2">
+                    {items.map((calc) => (
+                      <CalcTile
+                        key={calc.id}
+                        calc={calc}
+                        active={calc.id === activeId}
+                        onClick={() => setActiveId(calc.id)}
+                        label={t(calc.titleKey)}
+                        desc={t(calc.descKey)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </aside>
+
+          {/* Active calculator */}
+          <div className="min-w-0">
+            <ActiveComp />
+          </div>
         </div>
       </div>
     </div>

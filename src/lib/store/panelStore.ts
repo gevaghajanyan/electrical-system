@@ -1,4 +1,4 @@
-import type { Panel, PanelElement, Rail, Connection, ElementProperties, Annotation } from '../types/panel'
+import type { Panel, PanelElement, Rail, Connection, ElementProperties, Annotation, CableInput, CableCrossSection, ConductorType } from '../types/panel'
 import { deserializePanel, serializePanel } from '../utils/importExport'
 import { removeConnectionsForElement, canConnect } from '../utils/connectionUtils'
 import { hasSlotCollision } from '../utils/slotUtils'
@@ -42,6 +42,16 @@ export const DEFAULT_SETTINGS: AppSettings = {
 const STORAGE_KEY = 'electrical-system-v1'
 
 function migrateElementKind(typeId: string, props: Record<string, unknown>): ElementProperties {
+  // Migrate legacy stored contactor with kind:'generic' + rating → new kind:'contactor'
+  if (typeId.startsWith('contactor_') && (props.kind === 'generic' || !('kind' in props))) {
+    const poles = typeId === 'contactor_2p' ? 2 : typeId === 'contactor_4p' ? 4 : 3
+    return {
+      kind: 'contactor',
+      rating: (typeof props.rating === 'number' ? props.rating : 25),
+      coilVoltage: 230,
+      poles: poles as 2 | 3 | 4,
+    } as ElementProperties
+  }
   if ('kind' in props) return props as ElementProperties
   if (typeId.startsWith('rcbo_')) return { kind: 'rcbo', ...props } as ElementProperties
   if (typeId.startsWith('rcd_')) return { kind: 'rcd', ...props } as ElementProperties
@@ -49,6 +59,8 @@ function migrateElementKind(typeId: string, props: Record<string, unknown>): Ele
   if (typeId.startsWith('isolator_')) return { kind: 'isolator', ...props } as ElementProperties
   if (typeId.startsWith('main_switch_')) return { kind: 'isolator', ...props } as ElementProperties
   if (typeId === 'voltage_relay') return { kind: 'voltage_relay', ...props } as ElementProperties
+  if (typeId === 'surge_protector') return { kind: 'surge_protector', type: 'T2', nominalCurrent: 20, protectionLevel: 1.5, maxOperatingVoltage: 275, ...props } as ElementProperties
+  if (typeId === 'timer') return { kind: 'timer', mode: 'weekly', rating: 16, ...props } as ElementProperties
   return { kind: 'generic', ...props } as ElementProperties
 }
 
@@ -59,6 +71,8 @@ function migrateState(s: PanelStoreState): PanelStoreState {
     panels: s.panels.map((p) => ({
       ...p,
       annotations: p.annotations ?? [],
+      notes: (p as unknown as Record<string, unknown>).notes as string ?? '',
+      inputCables: (p as unknown as Record<string, unknown>).inputCables as typeof p.inputCables ?? [],
       elements: p.elements.map((e) => ({
         ...e,
         properties: migrateElementKind(e.typeId, e.properties as Record<string, unknown>),
@@ -277,12 +291,14 @@ export const panelStore = {
       name,
       description: '',
       location: '',
+      notes: '',
       voltage: state.settings.defaultVoltage,
       frequency: state.settings.defaultFrequency,
       rails: [{ id: defaultRailId, label: 'Rail 1', slotCount: state.settings.defaultSlotCount }],
       elements: [],
       connections: [],
       annotations: [],
+      inputCables: [],
       createdAt: now(),
       updatedAt: now(),
     }
@@ -311,7 +327,7 @@ export const panelStore = {
     return newPanel
   },
 
-  updatePanel(panelId: string, updates: Partial<Pick<Panel, 'name' | 'description' | 'location' | 'voltage' | 'frequency'>>) {
+  updatePanel(panelId: string, updates: Partial<Pick<Panel, 'name' | 'description' | 'location' | 'notes' | 'voltage' | 'frequency'>>) {
     pushUndo()
     setState((s) => ({
       ...s,
@@ -577,6 +593,25 @@ export const panelStore = {
         elementIds.includes(e.id) ? { ...e, circuitTag: tag || undefined } : e
       ),
     }))
+  },
+
+  // ── Input cable CRUD ──
+  addCableInput(conductor: ConductorType, crossSection: CableCrossSection, description: string): void {
+    const cable: CableInput = { id: uid(), conductor, crossSection, description }
+    pushUndo('Add cable input')
+    updateActivePanel((p) => ({ ...p, inputCables: [...p.inputCables, cable] }))
+  },
+
+  updateCableInput(id: string, updates: Partial<Omit<CableInput, 'id'>>): void {
+    updateActivePanel((p) => ({
+      ...p,
+      inputCables: p.inputCables.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+    }))
+  },
+
+  deleteCableInput(id: string): void {
+    pushUndo('Delete cable input')
+    updateActivePanel((p) => ({ ...p, inputCables: p.inputCables.filter((c) => c.id !== id) }))
   },
 
   // ── Annotation CRUD ──

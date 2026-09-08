@@ -1,9 +1,9 @@
 'use client'
 
-import { Group, Rect, Text, Circle, Arc, Line } from 'react-konva'
+import { Group, Rect, Text, Circle } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import type Konva from 'konva'
-import type { PanelElement, Rail, Connection, ElementTypeId } from '@/lib/types/panel'
+import type { PanelElement, Rail, Connection } from '@/lib/types/panel'
 import {
   SLOT_WIDTH_PX, ELEMENT_HEIGHT_PX, RAIL_ROW_HEIGHT_PX,
   PANEL_PADDING_PX, SLOT_GAP, ELEMENT_TOP_Y,
@@ -14,176 +14,8 @@ import { panelStore } from '@/lib/store/panelStore'
 import { isWithinRail, hasSlotCollision } from '@/lib/utils/slotUtils'
 import { getRelativePorts, phaseColor, phaseLabel } from '@/lib/utils/portUtils'
 import { canConnect, isPortConnected } from '@/lib/utils/connectionUtils'
-
-const CIRCUIT_PALETTE = ['#ef4444','#f97316','#f59e0b','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
-
-function circuitTagColor(tag: string): string {
-  let h = 0
-  for (let i = 0; i < tag.length; i++) h = tag.charCodeAt(i) + ((h << 5) - h)
-  return CIRCUIT_PALETTE[Math.abs(h) % CIRCUIT_PALETTE.length]
-}
-
-function getDisplayLabel(element: PanelElement): string {
-  const p = element.properties
-  if (p.kind === 'mcb' || p.kind === 'rcbo') return `${p.curve}${p.rating}A`
-  if (p.kind === 'rcd' || p.kind === 'isolator') return `${p.rating}A`
-  if (p.kind === 'voltage_relay') return `${p.minVoltage}–${p.maxVoltage}V`
-  return ''
-}
-
-/** Small type-specific symbol drawn in the body of the element. */
-function TypeSymbol({ typeId, cx, cy, tc }: {
-  typeId: ElementTypeId
-  cx: number  // center x
-  cy: number  // center y
-  tc: string  // text/stroke color
-}) {
-  const op = 0.45
-  const fill = tc
-
-  // MCB — arc (trip bimetallic) + two contact dots
-  if (typeId.startsWith('mcb_')) {
-    return (
-      <Group>
-        <Circle x={cx - 7} y={cy} radius={2.5} fill={fill} opacity={op} listening={false} />
-        <Arc x={cx} y={cy} innerRadius={0} outerRadius={6} angle={180} rotation={0} fill={fill} opacity={op} listening={false} />
-        <Circle x={cx + 7} y={cy} radius={2.5} fill={fill} opacity={op} listening={false} />
-      </Group>
-    )
-  }
-
-  // RCD — test button circle with earth lines
-  if (typeId === 'rcd_2p' || typeId === 'rcd_4p') {
-    return (
-      <Group>
-        <Circle x={cx} y={cy - 3} radius={5} stroke={fill} strokeWidth={1.5} fill="transparent" opacity={op + 0.1} listening={false} />
-        <Line points={[cx, cy + 2, cx, cy + 8]} stroke={fill} strokeWidth={1.5} opacity={op} listening={false} />
-        <Line points={[cx - 4, cy + 5, cx + 4, cy + 5]} stroke={fill} strokeWidth={1.5} opacity={op} listening={false} />
-        <Line points={[cx - 2, cy + 7, cx + 2, cy + 7]} stroke={fill} strokeWidth={1} opacity={op} listening={false} />
-      </Group>
-    )
-  }
-
-  // RCBO — arc + test circle combined
-  if (typeId.startsWith('rcbo_')) {
-    return (
-      <Group>
-        <Arc x={cx - 4} y={cy} innerRadius={0} outerRadius={5} angle={180} rotation={0} fill={fill} opacity={op} listening={false} />
-        <Circle x={cx + 6} y={cy} radius={4} stroke={fill} strokeWidth={1.5} fill="transparent" opacity={op + 0.1} listening={false} />
-      </Group>
-    )
-  }
-
-  // Isolator — open contact symbol: — O —
-  if (typeId.startsWith('isolator_')) {
-    return (
-      <Group>
-        <Line points={[cx - 10, cy, cx - 4, cy]} stroke={fill} strokeWidth={2} opacity={op} listening={false} />
-        <Circle x={cx} y={cy} radius={4} stroke={fill} strokeWidth={1.5} fill="transparent" opacity={op + 0.1} listening={false} />
-        <Line points={[cx + 4, cy, cx + 10, cy]} stroke={fill} strokeWidth={2} opacity={op} listening={false} />
-      </Group>
-    )
-  }
-
-  // Main switch — power ring with vertical bar
-  if (typeId.startsWith('main_switch_')) {
-    return (
-      <Group>
-        <Arc x={cx} y={cy + 2} innerRadius={6} outerRadius={8} angle={300} rotation={120} stroke={fill} strokeWidth={0} fill={fill} opacity={op + 0.15} listening={false} />
-        <Line points={[cx, cy - 8, cx, cy - 3]} stroke={fill} strokeWidth={2.5} lineCap="round" opacity={op + 0.15} listening={false} />
-      </Group>
-    )
-  }
-
-  // Cross connector — plus / cross symbol
-  if (typeId === 'cross_2p') {
-    return (
-      <Group>
-        <Line points={[cx, cy - 9, cx, cy + 9]} stroke={fill} strokeWidth={2} opacity={op} listening={false} />
-        <Line points={[cx - 9, cy, cx + 9, cy]} stroke={fill} strokeWidth={2} opacity={op} listening={false} />
-        <Circle x={cx - 6} y={cy - 6} radius={2} fill={fill} opacity={op - 0.05} listening={false} />
-        <Circle x={cx + 6} y={cy - 6} radius={2} fill={fill} opacity={op - 0.05} listening={false} />
-        <Circle x={cx - 6} y={cy + 6} radius={2} fill={fill} opacity={op - 0.05} listening={false} />
-        <Circle x={cx + 6} y={cy + 6} radius={2} fill={fill} opacity={op - 0.05} listening={false} />
-      </Group>
-    )
-  }
-
-  // Contactor — coil symbol
-  if (typeId === 'contactor_3p') {
-    return (
-      <Group>
-        <Rect x={cx - 7} y={cy - 5} width={14} height={10} stroke={fill} strokeWidth={1.5} fill="transparent" opacity={op} cornerRadius={2} listening={false} />
-        <Line points={[cx - 4, cy - 5, cx - 4, cy + 5, cx, cy - 5, cx, cy + 5, cx + 4, cy - 5, cx + 4, cy + 5]} stroke={fill} strokeWidth={1} opacity={op} listening={false} />
-      </Group>
-    )
-  }
-
-  // Timer — clock circle
-  if (typeId === 'timer') {
-    return (
-      <Group>
-        <Circle x={cx} y={cy} radius={7} stroke={fill} strokeWidth={1.5} fill="transparent" opacity={op} listening={false} />
-        <Line points={[cx, cy, cx, cy - 4]} stroke={fill} strokeWidth={1.5} opacity={op + 0.1} listening={false} />
-        <Line points={[cx, cy, cx + 3, cy + 2]} stroke={fill} strokeWidth={1.5} opacity={op + 0.1} listening={false} />
-      </Group>
-    )
-  }
-
-  // SPD — lightning bolt
-  if (typeId === 'surge_protector') {
-    return (
-      <Line
-        points={[cx + 3, cy - 8, cx - 2, cy - 1, cx + 2, cy - 1, cx - 3, cy + 8]}
-        stroke={fill} strokeWidth={2} lineCap="round" lineJoin="round"
-        opacity={op + 0.1} listening={false}
-      />
-    )
-  }
-
-  // Neutral / Earth bar — horizontal stacked bars
-  if (typeId === 'neutral_bar' || typeId === 'earth_bar') {
-    const ys = typeId === 'earth_bar' ? [cy - 4, cy + 1, cy + 5] : [cy - 3, cy + 3]
-    const widths = typeId === 'earth_bar' ? [12, 8, 4] : [12, 12]
-    return (
-      <Group>
-        {ys.map((y, i) => (
-          <Line
-            key={i}
-            points={[cx - widths[i] / 2, y, cx + widths[i] / 2, y]}
-            stroke={fill} strokeWidth={2} lineCap="round"
-            opacity={op} listening={false}
-          />
-        ))}
-      </Group>
-    )
-  }
-
-  // Voltage relay — gauge arc + needle + "V"
-  if (typeId === 'voltage_relay') {
-    return (
-      <Group>
-        <Arc x={cx} y={cy + 2} innerRadius={6} outerRadius={8} angle={180} rotation={180} stroke={fill} strokeWidth={0} fill={fill} opacity={op} listening={false} />
-        <Line points={[cx, cy + 2, cx - 4, cy - 4]} stroke={fill} strokeWidth={2} lineCap="round" opacity={op + 0.2} listening={false} />
-        <Text text="V" x={cx - 3} y={cy - 3} fontSize={7} fontStyle="bold" fill={fill} opacity={op + 0.3} listening={false} />
-      </Group>
-    )
-  }
-
-  // Busbar — horizontal line with connection pins
-  if (typeId === 'busbar_connector') {
-    return (
-      <Group>
-        <Line points={[cx - 10, cy, cx + 10, cy]} stroke={fill} strokeWidth={3} opacity={op} listening={false} />
-        {[-6, 0, 6].map((dx) => (
-          <Line key={dx} points={[cx + dx, cy, cx + dx, cy + 6]} stroke={fill} strokeWidth={1.5} opacity={op} listening={false} />
-        ))}
-      </Group>
-    )
-  }
-
-  return null
-}
+import { circuitTagColor } from '@/lib/utils/circuitTagColor'
+import { renderSymbol } from './symbols'
 
 interface ElementShapeProps {
   element: PanelElement
@@ -212,15 +44,16 @@ export function ElementShape({
   const w = element.slotWidth * SLOT_WIDTH_PX - SLOT_GAP
   const h = ELEMENT_HEIGHT_PX
 
-  const displayLabel = getDisplayLabel(element)
   const userLabel = element.label
-  const isRcd = element.typeId.startsWith('rcd_') || element.typeId.startsWith('rcbo_')
-  const isMainSwitch = element.typeId.startsWith('main_switch_')
-  const headerH = isMainSwitch ? 18 : 15
-  const fontSize = Math.min(13, Math.max(7, w / (element.slotWidth > 1 ? 3 : 2.2)))
+  const isRcd = def.symbolId === 'rcd' || def.symbolId === 'rcbo'
+  const isMainSwitch = def.symbolId === 'main_switch'
+  const headerH = isMainSwitch ? 14 : 12
+  const footerH = userLabel ? 12 : 0
+  const bodyRadius = isMainSwitch ? 6 : 4
 
-  // Symbol sits in the middle of the body (between header and display label)
-  const symbolCY = headerH + (h - headerH - (displayLabel ? 18 : 0) - (userLabel ? 14 : 0)) / 2
+  // Face area for the symbol renderer (below header, above footer)
+  const faceY = headerH
+  const faceH = h - headerH - footerH
 
   const relativePorts = getRelativePorts(element, def)
   const isConnecting = connectingFrom !== null
@@ -296,15 +129,24 @@ export function ElementShape({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      {/* Body */}
+      {/* Plastic body (base fill) */}
       <Rect
         width={w} height={h}
         fill={def.color}
-        cornerRadius={isMainSwitch ? 6 : 4}
-        shadowColor="rgba(0,0,0,0.4)"
+        cornerRadius={bodyRadius}
+        shadowColor="rgba(0,0,0,0.45)"
         shadowBlur={isMainSwitch ? 10 : 6}
         shadowOffsetY={2}
         shadowEnabled
+      />
+      {/* Plastic sheen — subtle vertical gradient overlay */}
+      <Rect
+        width={w} height={h}
+        cornerRadius={bodyRadius}
+        fillLinearGradientStartPoint={{ x: 0, y: 0 }}
+        fillLinearGradientEndPoint={{ x: 0, y: h }}
+        fillLinearGradientColorStops={[0, 'rgba(255,255,255,0.25)', 0.4, 'rgba(255,255,255,0.05)', 0.7, 'rgba(0,0,0,0.08)', 1, 'rgba(0,0,0,0.28)']}
+        listening={false}
       />
 
       {/* Circuit tag stripe — left edge */}
@@ -313,7 +155,7 @@ export function ElementShape({
           x={0} y={0}
           width={4} height={h}
           fill={circuitTagColor(element.circuitTag)}
-          cornerRadius={[isMainSwitch ? 6 : 4, 0, 0, isMainSwitch ? 6 : 4]}
+          cornerRadius={[bodyRadius, 0, 0, bodyRadius]}
           listening={false}
         />
       )}
@@ -331,74 +173,89 @@ export function ElementShape({
         />
       )}
 
-      {/* Header strip */}
+      {/* Header strip — brand/model band */}
       <Rect
         width={w} height={headerH}
-        fill="rgba(0,0,0,0.35)"
-        cornerRadius={[isMainSwitch ? 6 : 4, isMainSwitch ? 6 : 4, 0, 0]}
+        fill="rgba(0,0,0,0.4)"
+        cornerRadius={[bodyRadius, bodyRadius, 0, 0]}
         listening={false}
       />
-
-      {/* Short type label */}
       <Text
-        x={0} y={isMainSwitch ? 3 : 2}
+        x={0} y={2.5}
         width={w}
         text={def.shortLabel}
-        fontSize={Math.min(isMainSwitch ? 11 : 9, Math.max(6, w / 3.5))}
+        fontSize={Math.min(8, Math.max(5.5, w / 4.5))}
         fontStyle="bold"
         fill={def.textColor}
         align="center"
+        opacity={0.95}
         listening={false}
       />
 
-      {/* Type-specific symbol */}
-      <TypeSymbol typeId={element.typeId} cx={w / 2} cy={symbolCY} tc={def.textColor} />
+      {/* Faceplate — delegated to the symbol registry (renders full device face) */}
+      <Group x={0} y={faceY} listening={false}>
+        {renderSymbol(def.symbolId, {
+          cx: w / 2,
+          cy: faceH / 2,
+          w,
+          h: faceH,
+          tc: def.textColor,
+          bg: def.color,
+          props: element.properties,
+        })}
+      </Group>
 
-      {/* Main value label */}
-      {displayLabel !== '' && (
-        <Text
-          x={2} y={headerH + 4}
-          width={w - 4}
-          text={displayLabel}
-          fontSize={fontSize}
-          fontStyle="bold"
-          fill={def.textColor}
-          align="center"
-          listening={false}
-        />
-      )}
-
-      {/* User label */}
+      {/* User label / silkscreen at the bottom */}
       {userLabel && (
-        <Text
-          x={2} y={h - 16}
-          width={w - 4}
-          text={userLabel}
-          fontSize={Math.min(8, Math.max(6, w / 4.5))}
-          fill={def.textColor}
-          opacity={0.75}
-          align="center"
-          ellipsis
-          wrap="none"
-          listening={false}
-        />
+        <>
+          <Rect
+            x={0} y={h - footerH}
+            width={w} height={footerH}
+            fill="rgba(0,0,0,0.25)"
+            cornerRadius={[0, 0, bodyRadius, bodyRadius]}
+            listening={false}
+          />
+          <Text
+            x={2} y={h - footerH + 2}
+            width={w - 4}
+            text={userLabel}
+            fontSize={Math.min(8, Math.max(6, w / 4.5))}
+            fill={def.textColor}
+            opacity={0.9}
+            align="center"
+            ellipsis
+            wrap="none"
+            listening={false}
+          />
+        </>
       )}
 
-      {/* RCD/RCBO bottom stripe */}
+      {/* RCD/RCBO amber signature stripe */}
       {isRcd && (
         <Rect
-          x={0} y={h - 5}
-          width={w} height={5}
+          x={0} y={h - footerH - 2}
+          width={w} height={2}
           fill="#f59e0b"
-          cornerRadius={[0, 0, 4, 4]}
           listening={false}
         />
       )}
+
+      {/* Phase badge — top-right corner */}
+      {element.phase && (() => {
+        const phBg = element.phase === 'L1' ? '#ef4444' : element.phase === 'L2' ? '#f59e0b' : '#3b82f6'
+        const badgeW = 14
+        return (
+          <Group x={w - badgeW - 2} y={2} listening={false}>
+            <Rect width={badgeW} height={10} fill={phBg} cornerRadius={3} />
+            <Text text={element.phase} fontSize={6} fontStyle="bold" fill="#fff" width={badgeW} align="center" y={1.5} />
+          </Group>
+        )
+      })()}
 
       {/* Notes indicator dot */}
       {element.notes && (
         <Circle
-          x={w - 5} y={5}
+          x={element.phase ? w - 21 : w - 5} y={5}
           radius={4}
           fill="#fbbf24"
           stroke="#fff"

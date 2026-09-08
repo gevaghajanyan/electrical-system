@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useMemo, useEffect } from 'react'
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'next/navigation'
@@ -25,8 +25,16 @@ function formatDate(iso: string): string {
 
 type SortKey = 'updated' | 'name' | 'devices'
 
-function PanelCard({ panel }: { panel: Panel }) {
+function PanelCard({ panel, searchQuery }: { panel: Panel; searchQuery?: string }) {
   const { t } = useTranslation()
+
+  const matchedElements = useMemo(() => {
+    if (!searchQuery?.trim()) return []
+    const q = searchQuery.toLowerCase()
+    return panel.elements.filter(
+      (el) => el.label.toLowerCase().includes(q) || el.typeId.toLowerCase().includes(q) || el.circuitTag?.toLowerCase().includes(q)
+    ).slice(0, 4)
+  }, [panel.elements, searchQuery])
 
   function handleDelete(e: React.MouseEvent) {
     e.preventDefault()
@@ -43,7 +51,7 @@ function PanelCard({ panel }: { panel: Panel }) {
   return (
     <div className="group relative flex flex-col rounded-xl border border-zinc-200 bg-white transition-shadow hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800">
       <Link
-        href={`/panels/${panel.id}`}
+        href={`/panels/edit?id=${panel.id}`}
         className="flex flex-1 flex-col p-5"
         onClick={() => panelStore.setActivePanel(panel.id)}
       >
@@ -70,6 +78,18 @@ function PanelCard({ panel }: { panel: Panel }) {
           <span>·</span>
           <span>{formatDate(panel.updatedAt)}</span>
         </div>
+        {matchedElements.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {matchedElements.map((el) => (
+              <span key={el.id} className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                {el.label || el.typeId}
+              </span>
+            ))}
+            {panel.elements.filter(el => el.label.toLowerCase().includes(searchQuery!.toLowerCase()) || el.typeId.toLowerCase().includes(searchQuery!.toLowerCase())).length > 4 && (
+              <span className="text-[10px] text-zinc-400">+{panel.elements.filter(el => el.label.toLowerCase().includes(searchQuery!.toLowerCase()) || el.typeId.toLowerCase().includes(searchQuery!.toLowerCase())).length - 4} more</span>
+            )}
+          </div>
+        )}
       </Link>
       <div className="flex items-center gap-1 border-t border-zinc-100 px-5 py-2.5 dark:border-zinc-700">
         <Button size="sm" variant="ghost" onClick={handleDuplicate} className="text-xs">
@@ -106,7 +126,7 @@ function NewPanelModal({ open, onClose }: { open: boolean; onClose: () => void }
     onClose()
     setName('')
     setSelectedTemplate(null)
-    router.push(`/panels/${panel.id}`)
+    router.push(`/panels/edit?id=${panel.id}`)
   }
 
   function handleClose() {
@@ -238,7 +258,11 @@ export default function PanelsPage() {
         (p) =>
           p.name.toLowerCase().includes(q) ||
           p.location.toLowerCase().includes(q) ||
-          p.description.toLowerCase().includes(q)
+          p.description.toLowerCase().includes(q) ||
+          p.notes?.toLowerCase().includes(q) ||
+          p.elements.some(
+            (el) => el.label.toLowerCase().includes(q) || el.typeId.toLowerCase().includes(q) || el.circuitTag?.toLowerCase().includes(q)
+          )
       )
     }
     if (sortKey === 'updated') result.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -287,7 +311,7 @@ export default function PanelsPage() {
         {panels.length === 0 && (
           <div className="mb-5 rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900 p-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Sample Projects</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 { file: 'defance-home-32.json', name: 'Defance-home-32', desc: '3 bed · 2 bath · 4 rails' },
                 { file: 'defance-home-29.json', name: 'Defance-home-29', desc: '1 bed · 1 bath · 3 rails' },
@@ -301,7 +325,7 @@ export default function PanelsPage() {
                       const res = await fetch(`/samples/${file}`)
                       const panel = await res.json() as Panel
                       const imported = panelStore.importPanel(panel)
-                      router.push(`/panels/${imported.id}`)
+                      router.push(`/panels/edit?id=${imported.id}`)
                     } catch {
                       alert('Failed to load sample.')
                     }
@@ -365,7 +389,7 @@ export default function PanelsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((panel) => (
-              <PanelCard key={panel.id} panel={panel} />
+              <PanelCard key={panel.id} panel={panel} searchQuery={search} />
             ))}
           </div>
         )}

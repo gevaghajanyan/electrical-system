@@ -1,7 +1,8 @@
-import type { Panel, PanelElement } from '../types/panel'
+import type { Panel } from '../types/panel'
 import type { RenderOptions } from './canvasRenderer'
 import { renderPanel, measureCanvas } from './canvasRenderer'
 import { ELEMENT_DEFS_MAP } from '../constants/elementDefs'
+import { getElementFullSpec } from './elementDisplay'
 
 function escapeHtml(s: string): string {
   return s
@@ -12,15 +13,7 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;')
 }
 
-function getRatingLabel(el: PanelElement): string {
-  const p = el.properties
-  if (p.kind === 'mcb') return `${p.curve}${p.rating}A / ${p.breakingCapacity}kA`
-  if (p.kind === 'rcbo') return `${p.curve}${p.rating}A / ${p.sensitivity}mA`
-  if (p.kind === 'rcd') return `${p.rating}A / ${p.sensitivity}mA`
-  if (p.kind === 'isolator') return `${p.rating}A`
-  if (p.kind === 'voltage_relay') return `${p.minVoltage}–${p.maxVoltage}V`
-  return '—'
-}
+const getRatingLabel = getElementFullSpec
 
 interface BomRow { typeLabel: string; rating: string; qty: number; labels: string }
 
@@ -340,6 +333,87 @@ export function exportPanelSchedule(panel: Panel): void {
       <span>Electrical Panel Designer</span>
       <span>Printed ${now.toLocaleString()}</span>
     </div>
+  </div>
+  <script>window.onload = function() { window.print() }<\/script>
+</body>
+</html>`)
+  win.document.close()
+}
+
+const CIRCUIT_PALETTE = ['#ef4444','#f97316','#f59e0b','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
+function circuitTagColorHex(tag: string): string {
+  let h = 0
+  for (let i = 0; i < tag.length; i++) h = tag.charCodeAt(i) + ((h << 5) - h)
+  return CIRCUIT_PALETTE[Math.abs(h) % CIRCUIT_PALETTE.length]
+}
+
+export function printLabelSheet(panel: Panel): void {
+  const win = window.open('', '_blank', 'width=900,height=700')
+  if (!win) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return }
+
+  const sorted = [...panel.elements].sort((a, b) => {
+    const ri = panel.rails.findIndex((r) => r.id === a.railId) - panel.rails.findIndex((r) => r.id === b.railId)
+    return ri !== 0 ? ri : a.slotStart - b.slotStart
+  })
+
+  const labelRows = sorted.map((el, i) => {
+    const def = ELEMENT_DEFS_MAP.get(el.typeId)
+    const rail = panel.rails.find((r) => r.id === el.railId)
+    const rating = getRatingLabel(el)
+    const slotRange = `${el.slotStart + 1}${el.slotWidth > 1 ? '–' + (el.slotStart + el.slotWidth) : ''}`
+    const tagColor = el.circuitTag ? circuitTagColorHex(el.circuitTag) : null
+    const phColor = el.phase === 'L1' ? '#ef4444' : el.phase === 'L2' ? '#f59e0b' : el.phase === 'L3' ? '#3b82f6' : null
+    return `
+      <div class="label-cell" style="border-left: 4px solid ${tagColor ?? '#e2e8f0'}">
+        <div class="label-top">
+          <span class="label-num">${i + 1}</span>
+          <span class="label-slot">${rail?.label ?? ''} · ${slotRange}</span>
+          ${phColor ? `<span class="phase-dot" style="background:${phColor}">${el.phase}</span>` : ''}
+        </div>
+        <div class="label-type" style="background:${def?.color ?? '#6b7280'}; color:${def?.textColor ?? '#fff'}">${escapeHtml(def?.shortLabel ?? el.typeId)}</div>
+        <div class="label-desc">${escapeHtml(el.label || def?.label || el.typeId)}</div>
+        <div class="label-rating">${escapeHtml(rating)}</div>
+      </div>`
+  }).join('')
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Label Sheet — ${escapeHtml(panel.name)}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #fff; color: #111; }
+    h1 { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+    .subtitle { font-size: 10px; color: #666; margin-bottom: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+    .label-cell {
+      border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 5px;
+      height: 56px; overflow: hidden; display: flex; flex-direction: column; gap: 1px;
+      page-break-inside: avoid;
+    }
+    .label-top { display: flex; align-items: center; gap: 3px; font-size: 8px; color: #888; }
+    .label-num { font-weight: 700; color: #333; }
+    .label-slot { flex: 1; }
+    .phase-dot { font-size: 7px; font-weight: 700; color: #fff; padding: 1px 3px; border-radius: 3px; }
+    .label-type { font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 2px; display: inline-block; align-self: flex-start; }
+    .label-desc { font-size: 9px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .label-rating { font-size: 8px; color: #555; }
+    .footer { margin-top: 10px; font-size: 9px; color: #aaa; display: flex; justify-content: space-between; }
+    @media print { .no-print { display: none; } }
+    .no-print { margin-bottom: 12px; }
+    button { padding: 6px 14px; font-size: 12px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="no-print"><button onclick="window.print()">Print</button></div>
+  <h1>${escapeHtml(panel.name)}</h1>
+  <div class="subtitle">${escapeHtml(panel.location)}${panel.location && panel.description ? ' · ' : ''}${escapeHtml(panel.description)} · ${panel.elements.length} circuits · ${panel.voltage}V/${panel.frequency}Hz</div>
+  <div class="grid">${labelRows}</div>
+  <div class="footer">
+    <span>Electrical Panel Designer</span>
+    <span>Printed ${new Date().toLocaleString()}</span>
   </div>
   <script>window.onload = function() { window.print() }<\/script>
 </body>
