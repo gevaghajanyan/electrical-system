@@ -13,6 +13,17 @@ export function phasesForPoles(poles: number): Phase[] {
   return ['L1', 'L2', 'L3', 'N']
 }
 
+/**
+ * Distribution bars (neutral_bar / earth_bar) have `poles: 0` for legacy
+ * reasons but still need a single phase-tagged port so RCD/RCBO neutrals
+ * can be terminated onto them in wiring.
+ */
+export function phasesForDef(def: ElementDef): Phase[] {
+  if (def.id === 'neutral_bar') return ['N']
+  if (def.id === 'earth_bar') return ['PE']
+  return phasesForPoles(def.poles)
+}
+
 /** portId format: "elementId:side:phase" e.g. "abc:top:L1" */
 export function getPortId(elementId: string, side: PortSide, phase: Phase): string {
   return `${elementId}:${side}:${phase}`
@@ -54,7 +65,7 @@ export interface RelativePort {
 
 /** Returns port positions relative to the element Group's top-left corner. */
 export function getRelativePorts(element: PanelElement, def: ElementDef): RelativePort[] {
-  const phases = phasesForPoles(def.poles)
+  const phases = phasesForDef(def)
   if (phases.length === 0) return []
   const w = element.slotWidth * SLOT_WIDTH_PX - SLOT_GAP
   const ports: RelativePort[] = []
@@ -87,7 +98,7 @@ export function getPortPositions(
   railIndex: number,
   scale: number,
 ): PortPosition[] {
-  const phases = phasesForPoles(def.poles)
+  const phases = phasesForDef(def)
   if (phases.length === 0) return []
 
   const railY = PANEL_PADDING_PX + railIndex * RAIL_ROW_HEIGHT_PX

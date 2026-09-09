@@ -21,10 +21,25 @@ const APP_NAME = 'Voltra — Electrical Panel Designer'
 const APP_DESC =
   'Design and document DIN rail electrical distribution boards and wiring schemes. Works offline.'
 
+// Next.js file-convention icons (app/icon.tsx, app/apple-icon.tsx, app/favicon.ico)
+// build the PNGs correctly but emit <link> tags without basePath — so on
+// GitHub Pages under /voltra/ the browser 404s them. Declare icons manually
+// with the basePath baked in.
+const base = (process.env.NEXT_PUBLIC_BASE_PATH || '').replace(/\/$/, '')
+
 export const metadata: Metadata = {
   applicationName: APP_NAME,
   title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
   description: APP_DESC,
+  icons: {
+    icon: [
+      { url: `${base}/favicon.ico`, sizes: 'any', type: 'image/x-icon' },
+      { url: `${base}/icon`, type: 'image/png', sizes: '32x32' },
+    ],
+    apple: [
+      { url: `${base}/apple-icon`, type: 'image/png', sizes: '180x180' },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

@@ -18,6 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/schemes', labelKey: 'nav.schemes' },
   { href: '/calculators', labelKey: 'nav.calculators' },
   { href: '/learn', labelKey: 'nav.learn' },
+  { href: '/reference', labelKey: 'nav.reference' },
   { href: '/tools', labelKey: 'nav.tools' },
   { href: '/settings', labelKey: 'nav.settings' },
   { href: '/about', labelKey: 'nav.about' },

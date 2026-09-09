@@ -26,6 +26,13 @@ import { FormulasReference } from './FormulasReference'
 import { ConduitFillCalc } from './ConduitFillCalc'
 import { UpstreamFaultCalc } from './UpstreamFaultCalc'
 import { EarthRodCalc } from './EarthRodCalc'
+import { SolarSizerCalc } from './SolarSizerCalc'
+import { EvCableCalc } from './EvCableCalc'
+import { LoadScheduleCalc } from './LoadScheduleCalc'
+import { PvStringCalc } from './PvStringCalc'
+import { MotorSizerCalc } from './MotorSizerCalc'
+import { LightingCalc } from './LightingCalc'
+import { TorqueLookupCalc } from './TorqueLookupCalc'
 
 export type CalcGroup = 'basic' | 'installation' | 'power' | 'electronics' | 'utility'
 
@@ -169,6 +176,38 @@ export const CALCULATORS: CalcDef[] = [
     iconPath: icon('M12 3v13M6 20l12 0M8 16h8M9 12h6M10 8h4'),
     Component: EarthRodCalc,
   },
+  {
+    id: 'ev_cable',
+    group: 'installation',
+    titleKey: 'calc.ev_cable.title',
+    descKey: 'calc.ev_cable.description',
+    iconPath: icon('M6 4h4v6h-4zM14 10h4v10h-4zM6 20h12'),
+    Component: EvCableCalc,
+  },
+  {
+    id: 'motor_sizer',
+    group: 'installation',
+    titleKey: 'calc.motor_sizer.title',
+    descKey: 'calc.motor_sizer.description',
+    iconPath: icon('M12 3a9 9 0 100 18 9 9 0 000-18zM12 8v8M8 12h8'),
+    Component: MotorSizerCalc,
+  },
+  {
+    id: 'load_schedule',
+    group: 'installation',
+    titleKey: 'calc.load_schedule.title',
+    descKey: 'calc.load_schedule.description',
+    iconPath: icon('M4 6h16M4 12h16M4 18h10'),
+    Component: LoadScheduleCalc,
+  },
+  {
+    id: 'torque_lookup',
+    group: 'installation',
+    titleKey: 'calc.torque_lookup.title',
+    descKey: 'calc.torque_lookup.description',
+    iconPath: icon('M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1'),
+    Component: TorqueLookupCalc,
+  },
 
   // ─── Power ─────────────────────────────────────────────
   {
@@ -186,6 +225,30 @@ export const CALCULATORS: CalcDef[] = [
     descKey: 'calc.neutral.description',
     iconPath: icon('M4 20L8 4M12 20L12 4M20 20L16 4'),
     Component: NeutralCurrentCalc,
+  },
+  {
+    id: 'solar_sizer',
+    group: 'power',
+    titleKey: 'calc.solar_sizer.title',
+    descKey: 'calc.solar_sizer.description',
+    iconPath: icon('M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4M12 8a4 4 0 100 8 4 4 0 000-8z'),
+    Component: SolarSizerCalc,
+  },
+  {
+    id: 'pv_string',
+    group: 'power',
+    titleKey: 'calc.pv_string.title',
+    descKey: 'calc.pv_string.description',
+    iconPath: icon('M3 5h18v6H3zM3 13h18v6H3zM7 5v14M11 5v14M15 5v14M19 5v14'),
+    Component: PvStringCalc,
+  },
+  {
+    id: 'lighting',
+    group: 'power',
+    titleKey: 'calc.lighting.title',
+    descKey: 'calc.lighting.description',
+    iconPath: icon('M9 18h6M10 22h4M12 3a7 7 0 00-4 12.7V17h8v-1.3A7 7 0 0012 3z'),
+    Component: LightingCalc,
   },
 
   // ─── Electronics ───────────────────────────────────────
