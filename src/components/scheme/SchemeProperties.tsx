@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { Scheme, SchemeNode, SchemeWire } from '@/lib/types/scheme'
 import type { Panel } from '@/lib/types/panel'
 import { schemeStore } from '@/lib/store/schemeStore'
+import { SCHEME_DEFS } from '@/lib/constants/schemeDefs'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
@@ -12,15 +13,29 @@ interface Props {
   selectedNode: SchemeNode | null
   selectedWire: SchemeWire | null
   panels: Panel[]
+  connectingFrom?: { nodeId: string; portIndex: number } | null
+}
+
+function portTone(label: string): string {
+  if (label === 'L' || label === 'L1' || label === 'L2' || label === 'L3' || label === '+') return 'bg-red-500'
+  if (label === 'N' || label === 'N1' || label === 'N2' || label === '-') return 'bg-blue-500'
+  if (label === 'PE') return 'bg-green-500'
+  return 'bg-zinc-400'
 }
 
 /**
  * Right-hand-side scheme properties inspector — pure presentational component,
  * reused inside the desktop sidebar AND the mobile bottom-sheet.
  */
-export function SchemeProperties({ scheme, selectedNode, selectedWire, panels }: Props) {
+export function SchemeProperties({ scheme, selectedNode, selectedWire, panels, connectingFrom }: Props) {
   const { t } = useTranslation()
   const tips = t('schemes.editor.tipsList', { returnObjects: true }) as string[]
+
+  const nodeDef = selectedNode ? SCHEME_DEFS[selectedNode.type] : null
+  const nodeWires = selectedNode
+    ? scheme.wires.filter((w) => w.fromNodeId === selectedNode.id || w.toNodeId === selectedNode.id)
+    : []
+  const connectingFromThisNode = !!(connectingFrom && selectedNode && connectingFrom.nodeId === selectedNode.id)
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -29,6 +44,28 @@ export function SchemeProperties({ scheme, selectedNode, selectedWire, panels }:
           {t('schemes.editor.properties')}
         </p>
       </div>
+
+      {/* Global "connecting…" banner — visible whenever a source port is armed */}
+      {connectingFrom && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-800/60 dark:bg-amber-950/30">
+          <div className="flex items-center gap-2">
+            <span className="relative inline-flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+            </span>
+            <p className="flex-1 text-[11px] font-medium text-amber-800 dark:text-amber-200">
+              {t('schemes.editor.connectHint', { defaultValue: 'Tap another port to connect' })}
+            </p>
+            <button
+              type="button"
+              onClick={() => schemeStore.cancelConnecting()}
+              className="rounded px-2 py-0.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-100 dark:text-amber-100 dark:hover:bg-amber-900/40"
+            >
+              {t('schemes.modal.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 p-4">
         {selectedNode ? (
@@ -108,6 +145,90 @@ export function SchemeProperties({ scheme, selectedNode, selectedWire, panels }:
                 <p className="mt-1 text-[10px] text-blue-500">{t('schemes.editor.linkedNote')}</p>
               )}
             </div>
+
+            {/* Ports — tap to start a connection from that port */}
+            {nodeDef && (
+              <div>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                  {t('schemes.editor.ports', { defaultValue: 'Ports' })}
+                </p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {nodeDef.ports.map((port) => {
+                    const isArmed = connectingFromThisNode && connectingFrom?.portIndex === port.index
+                    return (
+                      <button
+                        key={port.index}
+                        type="button"
+                        onClick={() => schemeStore.handlePortClick(selectedNode.id, port.index)}
+                        className={`inline-flex min-h-[40px] items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs font-semibold transition-colors touch-manipulation ${
+                          isArmed
+                            ? 'border-amber-400 bg-amber-50 text-amber-800 dark:border-amber-500 dark:bg-amber-950/40 dark:text-amber-100'
+                            : 'border-zinc-200 bg-white text-zinc-700 hover:border-blue-300 hover:bg-blue-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:border-blue-500 dark:hover:bg-blue-950/30'
+                        }`}
+                      >
+                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${portTone(port.label)}`} />
+                        <span className="tabular-nums">{port.label || `#${port.index + 1}`}</span>
+                        {isArmed && (
+                          <span className="ml-auto text-[10px] font-normal text-amber-700 dark:text-amber-300">
+                            ●
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="mt-1.5 text-[10px] text-zinc-400 dark:text-zinc-500">
+                  {t('schemes.editor.portHint', {
+                    defaultValue: 'Tap a port here or on the canvas to start a wire.',
+                  })}
+                </p>
+              </div>
+            )}
+
+            {/* Existing wires attached to this node */}
+            {nodeWires.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                  {t('schemes.editor.wires')} · {nodeWires.length}
+                </p>
+                <ul className="space-y-1">
+                  {nodeWires.map((wire) => {
+                    const otherId = wire.fromNodeId === selectedNode.id ? wire.toNodeId : wire.fromNodeId
+                    const otherNode = scheme.nodes.find((n) => n.id === otherId)
+                    const otherDef = otherNode ? SCHEME_DEFS[otherNode.type] : null
+                    const otherPortIdx = wire.fromNodeId === selectedNode.id ? wire.toPortIndex : wire.fromPortIndex
+                    const otherPort = otherDef?.ports[otherPortIdx]
+                    const thisPortIdx = wire.fromNodeId === selectedNode.id ? wire.fromPortIndex : wire.toPortIndex
+                    const thisPort = nodeDef?.ports[thisPortIdx]
+                    return (
+                      <li key={wire.id} className="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-[11px] dark:border-zinc-700 dark:bg-zinc-800">
+                        <button
+                          type="button"
+                          onClick={() => schemeStore.selectWire(wire.id)}
+                          className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-zinc-700 hover:text-blue-600 dark:text-zinc-200 dark:hover:text-blue-400"
+                        >
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${portTone(thisPort?.label ?? '')}`} />
+                          <span className="tabular-nums">{thisPort?.label || `#${thisPortIdx + 1}`}</span>
+                          <span className="text-zinc-400">→</span>
+                          <span className="truncate">{otherNode?.label || '—'}</span>
+                          <span className="tabular-nums text-zinc-400">:{otherPort?.label || otherPortIdx}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => schemeStore.deleteWire(wire.id)}
+                          aria-label={t('schemes.editor.deleteWire')}
+                          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-zinc-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
 
             <Button
               variant="danger"

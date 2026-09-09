@@ -1095,6 +1095,9 @@
       "info": "Info",
       "components": "Components",
       "wires": "Wires",
+      "ports": "Ports",
+      "connectHint": "Tap another port to complete the connection",
+      "portHint": "Tap a port here or on the canvas to start a wire.",
       "tips": "Tips",
       "tipsList": [
         "Click port dots to connect wires",

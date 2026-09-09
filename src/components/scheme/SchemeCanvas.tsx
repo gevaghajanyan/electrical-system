@@ -488,33 +488,53 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
     const isConnecting = connectingFrom !== null
     const isSource =
       connectingFrom?.nodeId === node.id && connectingFrom?.portIndex === port.index
+    const isSelectedNode = node.id === selectedNodeId
     const color = portColor(port.label)
     const { x, y } = getRotatedPortPos(node, port)
+    // A tap on a port must always trigger the connect flow, never a node drag.
+    function handlePortActivate(e: React.PointerEvent | React.MouseEvent) {
+      e.stopPropagation()
+      schemeStore.handlePortClick(node.id, port.index)
+    }
 
     return (
-      <g key={port.index} transform={`translate(${x}, ${y})`}>
+      <g key={port.index} transform={`translate(${x}, ${y})`} style={{ touchAction: 'none' }}>
+        {/* Pulsing halo when a node is selected — makes ports discoverable */}
+        {(isSelectedNode || isConnecting) && !isSource && (
+          <circle r={12} fill={color} opacity={0.18}>
+            <animate attributeName="r" values="10;15;10" dur="1.4s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.28;0.08;0.28" dur="1.4s" repeatCount="indefinite" />
+          </circle>
+        )}
+        {isSource && (
+          <circle r={14} fill="#22c55e" opacity={0.25}>
+            <animate attributeName="r" values="12;18;12" dur="0.9s" repeatCount="indefinite" />
+          </circle>
+        )}
+        {/* Enlarged hit target (r=14 → 28px tap area, meets Apple/Android guidelines).
+            Pointer handler stops it from bubbling into the node drag pipeline. */}
         <circle
-          r={7}
+          r={14}
           fill="transparent"
           style={{ cursor: 'crosshair' }}
-          onClick={(e) => {
-            e.stopPropagation()
-            schemeStore.handlePortClick(node.id, port.index)
-          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={handlePortActivate}
+          onClick={handlePortActivate}
         />
         <circle
-          r={5}
+          r={isSource ? 7 : 5.5}
           fill={isSource ? '#22c55e' : isConnecting ? '#86efac' : color}
-          stroke="rgba(0,0,0,0.3)"
-          strokeWidth={1}
+          stroke="rgba(0,0,0,0.35)"
+          strokeWidth={1.2}
           style={{ pointerEvents: 'none' }}
         />
         {port.label && (
           <text
             x={0}
-            y={-8}
+            y={-10}
             textAnchor="middle"
-            fontSize={8}
+            fontSize={9}
+            fontWeight="600"
             fill={color}
             fontFamily="sans-serif"
             style={{ pointerEvents: 'none', userSelect: 'none' }}

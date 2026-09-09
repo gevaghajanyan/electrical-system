@@ -26,7 +26,7 @@ function SchemeEditorInner() {
   const id = searchParams.get('id') ?? ''
   const { t } = useTranslation()
   const storeState = useSchemeStore()
-  const { schemes, selectedNodeId, selectedWireId } = storeState
+  const { schemes, selectedNodeId, selectedWireId, connectingFrom } = storeState
   const { panels } = usePanelStore()
   const [zoom, setZoom] = useState(1)
   const [wireRouting, setWireRouting] = useState<'orthogonal' | 'straight'>('orthogonal')
@@ -170,6 +170,7 @@ function SchemeEditorInner() {
             selectedNode={selectedNode}
             selectedWire={selectedWire}
             panels={panels}
+            connectingFrom={connectingFrom}
           />
         </aside>
       </div>
