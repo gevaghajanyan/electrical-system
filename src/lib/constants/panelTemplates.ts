@@ -136,14 +136,14 @@ function cross(railIndex: number): TemplateElement {
   }
 }
 
-function neutralBar(railIndex: number): TemplateElement {
+function neutralBar(railIndex: number, label = 'N bar', notes = 'Neutral distribution bar'): TemplateElement {
   return {
     railIndex,
     typeId: 'neutral_bar',
     slotStart: place(railIndex, 2),
     slotWidth: 2,
-    label: 'N bar',
-    notes: 'Neutral distribution bar',
+    label,
+    notes,
     properties: { kind: 'generic' },
   }
 }
@@ -269,6 +269,9 @@ function buildApartment(spec: Spec): PanelTemplate {
   }
 
   // ─── Rail 1: ROOM & KITCHEN GROUPS ───
+  // Each RCD ends with its own N bar on the same rail — real cabinets isolate
+  // the neutrals per RCD because a shared N bar would cross-couple leakage
+  // between groups and trip the wrong device.
   const firstGroupSize = Math.min(rooms, 2)
   const rcdRoomsIdx = push(rcd(1, 40, 30, `RCD Rooms 1–${firstGroupSize}`))
   feedRcdFromCross(rcdRoomsIdx, `R1–${firstGroupSize}`)
@@ -282,6 +285,7 @@ function buildApartment(spec: Spec): PanelTemplate {
     const hallIdx = push(mcb(1, 10, 'Hallway light', 'B', 'Hallway'))
     feedFromRcd(rcdRoomsIdx, hallIdx, 'Hall')
   }
+  push(neutralBar(1, `N · R1–${firstGroupSize}`, `Isolated neutral bar for rooms 1–${firstGroupSize} RCD group`))
 
   if (rooms >= 3) {
     const rcdRooms2Idx = push(rcd(1, 40, 30, `RCD Rooms 3–${rooms}`))
@@ -292,6 +296,7 @@ function buildApartment(spec: Spec): PanelTemplate {
       feedFromRcd(rcdRooms2Idx, socketsIdx, `R${r} sockets`)
       feedFromRcd(rcdRooms2Idx, lightsIdx,  `R${r} lights`)
     }
+    push(neutralBar(1, `N · R3–${rooms}`, `Isolated neutral bar for rooms 3–${rooms} RCD group`))
   }
 
   // Kitchen — its own RCD (dishwasher / dish drier are wet-area appliances)
@@ -301,6 +306,7 @@ function buildApartment(spec: Spec): PanelTemplate {
   const kLightsIdx  = push(mcb(1, 10, 'Kitchen lights',  'B', 'Kitchen'))
   feedFromRcd(rcdKitchenIdx, kSocketsIdx, 'K sockets')
   feedFromRcd(rcdKitchenIdx, kLightsIdx,  'K lights')
+  push(neutralBar(1, 'N · Kitchen', 'Isolated neutral bar for kitchen RCD group'))
 
   // ─── Rail 2: BATHROOMS ───
   for (let b = 1; b <= bathrooms; b++) {
@@ -311,6 +317,7 @@ function buildApartment(spec: Spec): PanelTemplate {
     const bathLightsIdx  = push(mcb(2, 10, `Bath${suffix} lights`,  'B', `Bath${suffix}`))
     feedFromRcd(rcdBathIdx, bathSocketsIdx, `B${suffix} sockets`)
     feedFromRcd(rcdBathIdx, bathLightsIdx,  `B${suffix} lights`)
+    push(neutralBar(2, `N · Bath${suffix}`, `Isolated neutral bar for bathroom${suffix} RCD group (10 mA)`))
   }
 
   // Real DIN cabinets ship with all rails the same width. Size every rail to
