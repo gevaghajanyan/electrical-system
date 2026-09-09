@@ -79,6 +79,154 @@ const SCHEME_TEMPLATES: SchemeTemplate[] = [
       { fromNodeIndex: 0, fromPortIndex: 1, toNodeIndex: 3, toPortIndex: 1 },
     ],
   },
+  // ─── 3-way (intermediate) switching ─────────────────────────────────────
+  {
+    id: 'tpl_3way_switching',
+    i18nKey: 'three_way_switching',
+    nodes: [
+      { type: 'power_ac',           x: 48,  y: 144, label: 'AC Power' },
+      { type: 'switch_2way',        x: 200, y: 120, label: 'Switch 1' },
+      { type: 'switch_intermediate',x: 384, y: 120, label: 'Mid switch' },
+      { type: 'switch_2way',        x: 560, y: 120, label: 'Switch 3' },
+      { type: 'lamp_230',           x: 744, y: 144, label: 'Lamp' },
+    ],
+    wires: [
+      // L: AC → switch_2way(1).C → mid.A1/A2 → mid.B1/B2 → switch_2way(3).A/B → switch_2way(3).C → lamp.L
+      { fromNodeIndex: 0, fromPortIndex: 0, toNodeIndex: 1, toPortIndex: 0 },
+      { fromNodeIndex: 1, fromPortIndex: 1, toNodeIndex: 2, toPortIndex: 0 },
+      { fromNodeIndex: 1, fromPortIndex: 2, toNodeIndex: 2, toPortIndex: 1 },
+      { fromNodeIndex: 2, fromPortIndex: 2, toNodeIndex: 3, toPortIndex: 1 },
+      { fromNodeIndex: 2, fromPortIndex: 3, toNodeIndex: 3, toPortIndex: 2 },
+      { fromNodeIndex: 3, fromPortIndex: 0, toNodeIndex: 4, toPortIndex: 0 },
+      // N return
+      { fromNodeIndex: 0, fromPortIndex: 1, toNodeIndex: 4, toPortIndex: 1 },
+    ],
+  },
+  // ─── DOL motor starter — 3-phase ────────────────────────────────────────
+  {
+    id: 'tpl_dol_motor',
+    i18nKey: 'dol_motor_start',
+    nodes: [
+      { type: 'power_ac',    x: 48,  y: 40,  label: 'L1 L2 L3' },
+      { type: 'contactor',   x: 240, y: 120, label: 'KM1' },
+      { type: 'overload',    x: 240, y: 288, label: 'F1' },
+      { type: 'motor',       x: 264, y: 432, label: 'M ~' },
+      // Coil-side control column
+      { type: 'push_button', x: 480, y: 96,  label: 'Stop' },
+      { type: 'push_button', x: 480, y: 200, label: 'Start' },
+    ],
+    wires: [
+      // Main power: AC (L1/L2/L3 = port 0,1,2) → contactor top L1/L2/L3
+      { fromNodeIndex: 0, fromPortIndex: 0, toNodeIndex: 1, toPortIndex: 0 },
+      { fromNodeIndex: 0, fromPortIndex: 1, toNodeIndex: 1, toPortIndex: 1 },
+      { fromNodeIndex: 0, fromPortIndex: 2, toNodeIndex: 1, toPortIndex: 2 },
+      // Contactor bottom (T1/T2/T3 = ports 3,4,5) → overload top (L1/L2/L3 = ports 0,1,2)
+      { fromNodeIndex: 1, fromPortIndex: 3, toNodeIndex: 2, toPortIndex: 0 },
+      { fromNodeIndex: 1, fromPortIndex: 4, toNodeIndex: 2, toPortIndex: 1 },
+      { fromNodeIndex: 1, fromPortIndex: 5, toNodeIndex: 2, toPortIndex: 2 },
+      // Overload bottom (T1/T2/T3 = ports 3,4,5) → motor L / N / PE (0, 1, 2)
+      { fromNodeIndex: 2, fromPortIndex: 3, toNodeIndex: 3, toPortIndex: 0 },
+      { fromNodeIndex: 2, fromPortIndex: 4, toNodeIndex: 3, toPortIndex: 1 },
+      { fromNodeIndex: 2, fromPortIndex: 5, toNodeIndex: 3, toPortIndex: 2 },
+      // Control coil loop: L1 → Stop NC → Start NO → KM coil A1, A2 → overload 96 → N (AC port 1)
+      // Contactor coil is ports 6 (A1), 7 (A2). Simplified: Stop (port 0→1) → Start (0→1) → A1
+      { fromNodeIndex: 0, fromPortIndex: 0, toNodeIndex: 4, toPortIndex: 0 },
+      { fromNodeIndex: 4, fromPortIndex: 1, toNodeIndex: 5, toPortIndex: 0 },
+      { fromNodeIndex: 5, fromPortIndex: 1, toNodeIndex: 1, toPortIndex: 6 },
+      // Coil return: A2 → overload NC 95 → 96 → N
+      { fromNodeIndex: 1, fromPortIndex: 7, toNodeIndex: 2, toPortIndex: 6 },
+    ],
+  },
+  // ─── RCD + MCB group (consumer unit style) ──────────────────────────────
+  {
+    id: 'tpl_rcd_mcb_group',
+    i18nKey: 'rcd_mcb_group',
+    nodes: [
+      { type: 'power_ac', x: 48,  y: 96,  label: 'Mains' },
+      { type: 'rcd',      x: 240, y: 120, label: 'RCD 30 mA' },
+      { type: 'mcb',      x: 456, y: 264, label: 'C1 lights' },
+      { type: 'mcb',      x: 552, y: 264, label: 'C2 sockets' },
+      { type: 'mcb',      x: 648, y: 264, label: 'C3 kitchen' },
+      { type: 'lamp_230', x: 456, y: 408, label: 'Lights' },
+      { type: 'socket_outlet', x: 552, y: 408, label: 'Sockets' },
+      { type: 'socket_outlet', x: 648, y: 408, label: 'Kitchen' },
+    ],
+    wires: [
+      // AC → RCD top L / N
+      { fromNodeIndex: 0, fromPortIndex: 0, toNodeIndex: 1, toPortIndex: 0 },
+      { fromNodeIndex: 0, fromPortIndex: 1, toNodeIndex: 1, toPortIndex: 1 },
+      // RCD bottom L → each MCB top
+      { fromNodeIndex: 1, fromPortIndex: 2, toNodeIndex: 2, toPortIndex: 0 },
+      { fromNodeIndex: 1, fromPortIndex: 2, toNodeIndex: 3, toPortIndex: 0 },
+      { fromNodeIndex: 1, fromPortIndex: 2, toNodeIndex: 4, toPortIndex: 0 },
+      // MCB bottom → load L
+      { fromNodeIndex: 2, fromPortIndex: 1, toNodeIndex: 5, toPortIndex: 0 },
+      { fromNodeIndex: 3, fromPortIndex: 1, toNodeIndex: 6, toPortIndex: 0 },
+      { fromNodeIndex: 4, fromPortIndex: 1, toNodeIndex: 7, toPortIndex: 0 },
+      // Neutral return from RCD bottom N to each load N
+      { fromNodeIndex: 1, fromPortIndex: 3, toNodeIndex: 5, toPortIndex: 1 },
+      { fromNodeIndex: 1, fromPortIndex: 3, toNodeIndex: 6, toPortIndex: 1 },
+      { fromNodeIndex: 1, fromPortIndex: 3, toNodeIndex: 7, toPortIndex: 1 },
+      // PE for the two sockets (from AC PE = port 2)
+      { fromNodeIndex: 0, fromPortIndex: 2, toNodeIndex: 6, toPortIndex: 2 },
+      { fromNodeIndex: 0, fromPortIndex: 2, toNodeIndex: 7, toPortIndex: 2 },
+    ],
+  },
+  // ─── Star-Delta motor starter ───────────────────────────────────────────
+  {
+    id: 'tpl_star_delta',
+    i18nKey: 'star_delta_start',
+    nodes: [
+      { type: 'power_ac',  x: 48,  y: 40,  label: 'L1 L2 L3' },
+      { type: 'contactor', x: 216, y: 120, label: 'KM1 Main' },
+      { type: 'contactor', x: 432, y: 120, label: 'KM2 Star' },
+      { type: 'contactor', x: 648, y: 120, label: 'KM3 Delta' },
+      { type: 'motor',     x: 432, y: 336, label: 'M ~' },
+    ],
+    wires: [
+      // Mains → KM1 top L1/L2/L3
+      { fromNodeIndex: 0, fromPortIndex: 0, toNodeIndex: 1, toPortIndex: 0 },
+      { fromNodeIndex: 0, fromPortIndex: 1, toNodeIndex: 1, toPortIndex: 1 },
+      { fromNodeIndex: 0, fromPortIndex: 2, toNodeIndex: 1, toPortIndex: 2 },
+      // KM1 bottom → motor U1/V1/W1 (motor ports 0/1/2 stand-in)
+      { fromNodeIndex: 1, fromPortIndex: 3, toNodeIndex: 4, toPortIndex: 0 },
+      { fromNodeIndex: 1, fromPortIndex: 4, toNodeIndex: 4, toPortIndex: 1 },
+      { fromNodeIndex: 1, fromPortIndex: 5, toNodeIndex: 4, toPortIndex: 2 },
+      // Star: KM2 shorts U2/V2/W2 together. In our simplified port model
+      // we route KM2 tops from KM1 bottoms and KM2 bottoms all to motor PE
+      // as the "neutral point" placeholder.
+      { fromNodeIndex: 1, fromPortIndex: 3, toNodeIndex: 2, toPortIndex: 0 },
+      { fromNodeIndex: 1, fromPortIndex: 4, toNodeIndex: 2, toPortIndex: 1 },
+      { fromNodeIndex: 1, fromPortIndex: 5, toNodeIndex: 2, toPortIndex: 2 },
+      { fromNodeIndex: 2, fromPortIndex: 3, toNodeIndex: 4, toPortIndex: 2 },
+      { fromNodeIndex: 2, fromPortIndex: 4, toNodeIndex: 4, toPortIndex: 2 },
+      { fromNodeIndex: 2, fromPortIndex: 5, toNodeIndex: 4, toPortIndex: 2 },
+      // Delta: KM3 loops U2↔V1, V2↔W1, W2↔U1 (simplified — shares KM1's bottoms)
+      { fromNodeIndex: 1, fromPortIndex: 3, toNodeIndex: 3, toPortIndex: 0 },
+      { fromNodeIndex: 1, fromPortIndex: 4, toNodeIndex: 3, toPortIndex: 1 },
+      { fromNodeIndex: 1, fromPortIndex: 5, toNodeIndex: 3, toPortIndex: 2 },
+    ],
+  },
+  // ─── Doorbell (transformer + button + bell) ─────────────────────────────
+  {
+    id: 'tpl_doorbell',
+    i18nKey: 'doorbell',
+    nodes: [
+      { type: 'power_ac',       x: 48,  y: 96,  label: 'Mains 230V' },
+      { type: 'transformer_sd', x: 240, y: 96,  label: '230→8V' },
+      { type: 'push_button',    x: 480, y: 96,  label: 'Bell push' },
+      { type: 'bell',           x: 648, y: 120, label: 'Bell' },
+    ],
+    wires: [
+      // Primary: mains L/N → transformer L1/N1
+      { fromNodeIndex: 0, fromPortIndex: 0, toNodeIndex: 1, toPortIndex: 0 },
+      { fromNodeIndex: 0, fromPortIndex: 1, toNodeIndex: 1, toPortIndex: 1 },
+      // Secondary low-voltage: L2 → push → bell+, N2 → bell−
+      { fromNodeIndex: 1, fromPortIndex: 2, toNodeIndex: 2, toPortIndex: 0 },
+      { fromNodeIndex: 2, fromPortIndex: 1, toNodeIndex: 3, toPortIndex: 0 },
+      { fromNodeIndex: 1, fromPortIndex: 3, toNodeIndex: 3, toPortIndex: 1 },
+    ],
+  },
 ]
 
 // ─── Helpers ───────────────────────────────────────────────────────────────

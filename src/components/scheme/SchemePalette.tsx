@@ -13,11 +13,12 @@ interface Group {
 }
 
 const GROUPS: Group[] = [
-  { id: 'power',     labelKey: 'schemes.palette.groups.power',     types: ['power_ac'] },
-  { id: 'switching', labelKey: 'schemes.palette.groups.switching', types: ['switch_spst', 'push_button', 'switch_2way'] },
-  { id: 'loads',     labelKey: 'schemes.palette.groups.loads',     types: ['lamp_230', 'led_220', 'motor'] },
-  { id: 'outlets',   labelKey: 'schemes.palette.groups.outlets',   types: ['socket_outlet'] },
-  { id: 'other',     labelKey: 'schemes.palette.groups.other',     types: ['transformer_sd', 'junction'] },
+  { id: 'power',      labelKey: 'schemes.palette.groups.power',      types: ['power_ac', 'dc_supply', 'battery'] },
+  { id: 'protection', labelKey: 'schemes.palette.groups.protection', types: ['mcb', 'rcd', 'overload'] },
+  { id: 'switching',  labelKey: 'schemes.palette.groups.switching',  types: ['switch_spst', 'push_button', 'switch_2way', 'switch_intermediate', 'contactor'] },
+  { id: 'loads',      labelKey: 'schemes.palette.groups.loads',      types: ['lamp_230', 'led_220', 'motor', 'bell'] },
+  { id: 'outlets',    labelKey: 'schemes.palette.groups.outlets',    types: ['socket_outlet'] },
+  { id: 'other',      labelKey: 'schemes.palette.groups.other',      types: ['transformer_sd', 'kwh_meter', 'junction'] },
 ]
 
 function PaletteTile({

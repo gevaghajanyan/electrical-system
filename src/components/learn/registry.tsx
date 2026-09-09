@@ -3,6 +3,7 @@ import {
   Zap, Sigma, GitBranch, Waves, Cpu, LayoutGrid,
   ShieldAlert, ShieldCheck, Battery, Radio,
   Anchor, Layers, Rocket, Activity, GaugeCircle,
+  BookOpen, Palette, ToggleRight, ArrowUpDown,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { ElectricityIntroLesson } from './lessons/ElectricityIntroLesson'
@@ -20,6 +21,10 @@ import { SelectivityLesson } from './lessons/SelectivityLesson'
 import { MotorStartingLesson } from './lessons/MotorStartingLesson'
 import { HarmonicsLesson } from './lessons/HarmonicsLesson'
 import { VoltageDropCascadeLesson } from './lessons/VoltageDropCascadeLesson'
+import { ReadingDiagramsLesson } from './lessons/ReadingDiagramsLesson'
+import { WireColorsLesson } from './lessons/WireColorsLesson'
+import { ContactorLesson } from './lessons/ContactorLesson'
+import { TransformerBasicsLesson } from './lessons/TransformerBasicsLesson'
 
 export type LessonGroup = 'basics' | 'circuits' | 'safety' | 'practical' | 'advanced'
 export type LessonLevel = 'beginner' | 'intermediate' | 'advanced'
@@ -45,6 +50,30 @@ export interface LessonDef {
 }
 
 export const LESSONS: LessonDef[] = [
+  {
+    id: 'reading_diagrams',
+    group: 'basics',
+    level: 'beginner',
+    minutes: 4,
+    titleKey: 'learn.lessons.reading_diagrams.title',
+    descKey: 'learn.lessons.reading_diagrams.description',
+    Icon: BookOpen,
+    color: '#0891b2',
+    Component: ReadingDiagramsLesson,
+    relatedCalcs: [],
+  },
+  {
+    id: 'wire_colors',
+    group: 'basics',
+    level: 'beginner',
+    minutes: 3,
+    titleKey: 'learn.lessons.wire_colors.title',
+    descKey: 'learn.lessons.wire_colors.description',
+    Icon: Palette,
+    color: '#a16207',
+    Component: WireColorsLesson,
+    relatedCalcs: [],
+  },
   {
     id: 'electricity_intro',
     group: 'basics',
@@ -128,6 +157,30 @@ export const LESSONS: LessonDef[] = [
     color: '#1b2740',
     Component: BatteriesLesson,
     relatedCalcs: ['battery', 'ohms_dc'],
+  },
+  {
+    id: 'transformer_basics',
+    group: 'circuits',
+    level: 'intermediate',
+    minutes: 5,
+    titleKey: 'learn.lessons.transformer_basics.title',
+    descKey: 'learn.lessons.transformer_basics.description',
+    Icon: ArrowUpDown,
+    color: '#7c3aed',
+    Component: TransformerBasicsLesson,
+    relatedCalcs: ['ohms_ac', 'power'],
+  },
+  {
+    id: 'contactor',
+    group: 'circuits',
+    level: 'intermediate',
+    minutes: 4,
+    titleKey: 'learn.lessons.contactor.title',
+    descKey: 'learn.lessons.contactor.description',
+    Icon: ToggleRight,
+    color: '#0d9488',
+    Component: ContactorLesson,
+    relatedCalcs: ['motor', 'startup'],
   },
   {
     id: 'three_phase',

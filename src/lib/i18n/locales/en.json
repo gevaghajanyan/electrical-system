@@ -422,6 +422,63 @@
       "apparentPower": "Apparent power",
       "reactivePower": "Reactive power"
     },
+    "conduit_fill": {
+      "title": "Conduit fill",
+      "description": "Total cable cross-section vs conduit inside area — IEC / NEC 40% rule.",
+      "cables": "Cables to pull",
+      "csa": "CSA (mm²)",
+      "count": "Count",
+      "addCable": "Add cable",
+      "conduit": "Conduit OD",
+      "fill": "Fill",
+      "limit": "Limit",
+      "totalArea": "Cables total area",
+      "conduitArea": "Conduit inside area",
+      "recommended": "Smallest conduit that fits",
+      "notes": "Limit: 53% for 1 cable, 31% for 2, 40% for 3+ (IEC & NEC agree). Inside diameter is estimated at 92% of the nominal OD."
+    },
+    "upstream_fault": {
+      "title": "Upstream fault (transformer)",
+      "description": "Prospective short-circuit current at a panel busbar, from the utility transformer.",
+      "kva": "Transformer rating",
+      "uk": "Short-circuit impedance uk",
+      "ukHint": "Typical 4–6% for MV/LV distribution transformers",
+      "voltage": "Secondary line voltage",
+      "phase": "Supply",
+      "singlePhase": "Single-phase",
+      "threePhase": "Three-phase",
+      "isc": "Prospective Isc",
+      "iscA": "Isc (A)",
+      "breakingRequired": "Required breaking capacity",
+      "desc6":    "Very low fault current — B / C class breakers (6 kA Icu) are fine.",
+      "desc10":   "Typical residential fault level — C-curve MCBs at 10 kA Icu common.",
+      "desc25":   "Industrial / commercial level — use 25 kA MCBs or motor-protection breakers.",
+      "descHigh": "High fault level — install MCCBs with 36 kA+ breaking capacity, verify with a coordination study."
+    },
+    "earth_rod": {
+      "title": "Earth-rod resistance",
+      "description": "Resistance of a single vertical rod using Dwight's formula, plus N-rod estimate.",
+      "soil": "Soil type (preset)",
+      "soils": {
+        "wet_organic": "Wet organic (30 Ω·m)",
+        "moist_loam":  "Moist loam (60 Ω·m)",
+        "wet_sandy":   "Wet sandy (100 Ω·m)",
+        "dry_loam":    "Dry loam (150 Ω·m)",
+        "clay":        "Clay (200 Ω·m)",
+        "dry_sandy":   "Dry sandy (500 Ω·m)",
+        "stony":       "Stony (800 Ω·m)",
+        "gravel":      "Gravel (1 500 Ω·m)",
+        "bedrock":     "Bedrock (3 000 Ω·m)"
+      },
+      "rho": "Soil resistivity ρ",
+      "length": "Rod length",
+      "diameter": "Rod diameter",
+      "rods": "Number of rods",
+      "rSingle": "Single-rod resistance",
+      "rTotal": "Total resistance",
+      "target": "Typical target",
+      "notes": "R = (ρ / (2π·L)) · [ ln(4L/d) − 1 ]. Multi-rod result assumes spacing ≥ 2L; closer spacing raises the value. Target < 10 Ω is a common domestic RCD-friendly figure — always verify with a real earth-resistance tester."
+    },
     "busbar": {
       "title": "Busbar capacity",
       "description": "Current-carrying capacity of a rectangular busbar.",
@@ -559,6 +616,83 @@
       "advanced": "Advanced engineering"
     },
     "lessons": {
+      "reading_diagrams": {
+        "title": "Reading a wiring diagram",
+        "description": "Symbol conventions, line types, IEC vs ANSI — the alphabet of every diagram",
+        "intro": "Wiring diagrams use a compact symbolic language so a whole installation fits on one page. Two families dominate: IEC (Europe/most of the world) and ANSI (North America). Same components, different squiggles. Learn to recognise both and every diagram becomes readable.",
+        "component": "Component",
+        "standards": { "iec": "IEC (Europe)", "ansi": "ANSI (US)" },
+        "rows": {
+          "resistor": "Resistor",
+          "capacitor": "Capacitor",
+          "switch": "Switch",
+          "ground": "Ground / earth"
+        },
+        "line": {
+          "solid": "Solid — physical wire",
+          "dashed": "Dashed — mechanical link / logical group",
+          "dotted": "Dotted — future / optional / internal"
+        },
+        "point1": "IEC uses rectangles for resistors; ANSI uses zig-zags — same meaning, different symbol",
+        "point2": "Solid lines are wires; dashed lines mean mechanical or logical (not electrical) coupling",
+        "point3": "A dot at a wire crossing = connection; no dot = the wires cross without touching"
+      },
+      "wire_colors": {
+        "title": "Wire colors (L / N / PE by region)",
+        "description": "The colour code changes between EU, US and legacy UK — know all three",
+        "intro": "Wire colours identify the role of each conductor at a glance. The rules are regional: modern EU (harmonised HD 308), US (NEC), and pre-2004 UK differ significantly. Miswiring can be lethal — always verify before you touch.",
+        "regions": { "eu": "EU / modern", "us": "US (NEC)", "oldUk": "Old UK (pre-2004)" },
+        "role": { "L1": "Line 1", "L2": "Line 2", "L3": "Line 3", "N": "Neutral", "PE": "Protective earth" },
+        "colors": {
+          "brown": "Brown",
+          "black": "Black",
+          "grey": "Grey",
+          "blue": "Blue",
+          "greenYellow": "Green/Yellow",
+          "red": "Red",
+          "white": "White",
+          "green": "Green",
+          "yellow": "Yellow"
+        },
+        "notes": {
+          "eu": "EU harmonised — brown/black/grey lines, blue neutral, green-yellow PE. Same across Germany, France, most of Europe, Russia (GOST) and Armenia.",
+          "us": "US NEC: black + red + blue for 3-phase, white neutral, green/bare copper PE. High-leg delta uses orange for the wild leg.",
+          "oldUk": "Legacy UK (pre-2004): red/yellow/blue phases with black neutral. Still found in old buildings — always confirm with a tester."
+        },
+        "point1": "Green/yellow stripe is reserved for PE (protective earth) worldwide — never use it for anything else",
+        "point2": "Blue = neutral in EU, but blue = a phase in the US — don't assume across borders",
+        "point3": "Old installations often mix codes — a tester on every conductor before you touch it is not optional"
+      },
+      "contactor": {
+        "title": "How a contactor works",
+        "description": "Coil energised = main contacts close, aux NC opens — the workhorse of motor control",
+        "intro": "A contactor is a heavy-duty relay: a small coil current pulls a magnetic core that snaps the main power contacts closed. The main contacts (typically 3 poles for 3-phase) carry the load current; auxiliary contacts (NO or NC) signal the state of the coil so downstream control logic knows whether the contactor is on.",
+        "energised": "Coil energised",
+        "deenergised": "Coil off",
+        "on":  "✓ Coil energised — main contacts closed, load powered, aux NC opened",
+        "off": "Coil de-energised — main contacts open, aux NC closed",
+        "point1": "A tiny 24 V coil current can switch tens of amps at 400 V — that's the point of a contactor",
+        "point2": "Auxiliary NC (95-96) is the standard interlock terminal for the coil circuit — used in start/stop stations",
+        "point3": "Choose the coil voltage to match your control circuit (24 V DC, 230 V AC…) — the main contacts are voltage-agnostic"
+      },
+      "transformer_basics": {
+        "title": "Transformer basics",
+        "description": "Turns ratio, voltage/current inversion, and why power is (almost) conserved",
+        "intro": "A transformer trades voltage for current — or vice versa — through the ratio of primary to secondary turns. Double the turns on the secondary and you get double the voltage but half the current. Power stays constant (ideal transformer), which is why the grid uses high voltage: same power, thinner cables, less loss.",
+        "primary": "Primary",
+        "secondary": "Secondary",
+        "vp": "Primary voltage Vp",
+        "ip": "Primary current Ip",
+        "np": "Primary turns Np",
+        "ns": "Secondary turns Ns",
+        "ratio": "Turns ratio a",
+        "vs": "Secondary voltage Vs",
+        "is": "Secondary current Is",
+        "powerBalance": "Power balance (ideal): Pp = {{pp}} W ≈ Ps = {{ps}} W",
+        "point1": "Ideal ratio: Vs/Vp = Ns/Np = Ip/Is — voltage scales with turns, current scales inversely",
+        "point2": "Transformers work only with AC — DC would just heat the primary coil and go nowhere",
+        "point3": "Real transformers have ~95–99% efficiency; the losses are copper (I²R) + iron (eddy + hysteresis)"
+      },
       "electricity_intro": {
         "title": "What is electricity?",
         "description": "Electrons flowing through a wire — the basics, illustrated",
@@ -1029,7 +1163,12 @@
       "single_switch_lamp": { "name": "Switch + Lamp", "description": "Single switch controlling a lamp" },
       "led_transformer": { "name": "LED via Transformer", "description": "Step-down transformer powering an LED" },
       "socket": { "name": "Socket circuit", "description": "Mains socket with earth" },
-      "two_way_switching": { "name": "Two-way switching", "description": "Staircase / two-way lighting" }
+      "two_way_switching": { "name": "Two-way switching", "description": "Staircase / two-way lighting" },
+      "three_way_switching": { "name": "3-way (intermediate) switching", "description": "Light controlled from three locations" },
+      "dol_motor_start": { "name": "DOL motor starter", "description": "Direct-on-line 3-phase motor with start/stop and thermal overload" },
+      "rcd_mcb_group": { "name": "RCD + MCB group", "description": "Consumer-unit style: main → RCD → three MCB circuits" },
+      "star_delta_start": { "name": "Star-Delta starter", "description": "Two-contactor Y/Δ starter reduces motor inrush" },
+      "doorbell": { "name": "Doorbell", "description": "Push-button bell circuit fed via a step-down transformer" }
     },
     "card": {
       "badge": "Scheme",
@@ -1052,6 +1191,7 @@
       "hint": "Drag onto the canvas or click to add",
       "groups": {
         "power": "Power",
+        "protection": "Protection",
         "switching": "Switching",
         "loads": "Loads",
         "outlets": "Outlets",
@@ -1059,14 +1199,23 @@
       },
       "nodes": {
         "power_ac": "AC supply",
+        "dc_supply": "DC supply",
+        "battery": "Battery",
+        "mcb": "MCB",
+        "rcd": "RCD",
+        "overload": "Thermal overload",
         "switch_spst": "Switch (SPST)",
         "push_button": "Push button",
         "switch_2way": "Two-way switch",
+        "switch_intermediate": "Intermediate switch",
+        "contactor": "Contactor",
         "lamp_230": "Lamp 230 V",
         "led_220": "LED indicator",
         "motor": "Motor",
+        "bell": "Bell / buzzer",
         "socket_outlet": "Socket 2P+E",
         "transformer_sd": "Transformer",
+        "kwh_meter": "kWh meter",
         "junction": "Junction"
       }
     },

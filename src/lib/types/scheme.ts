@@ -8,7 +8,16 @@ export type SchemeNodeType =
   | 'socket_outlet'
   | 'push_button'
   | 'switch_2way'
+  | 'switch_intermediate'
   | 'motor'
+  | 'contactor'
+  | 'overload'
+  | 'dc_supply'
+  | 'battery'
+  | 'kwh_meter'
+  | 'mcb'
+  | 'rcd'
+  | 'bell'
 
 export interface SchemePort {
   index: number

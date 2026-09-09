@@ -1,4 +1,5 @@
-import type { Panel, PanelElement, Rail } from '../types/panel'
+import type { Connection, Panel, PanelElement, Phase, PortSide, Rail } from '../types/panel'
+import { getPortId } from '../utils/portUtils'
 
 /**
  * ─── Panel Templates ───────────────────────────────────────────────────────
@@ -27,6 +28,16 @@ interface TemplateElement extends Omit<PanelElement, 'id' | 'railId'> {
   railIndex: number
 }
 
+interface TemplateWire {
+  fromIndex: number
+  fromSide: PortSide
+  fromPhase: Phase
+  toIndex: number
+  toSide: PortSide
+  toPhase: Phase
+  label?: string
+}
+
 interface PanelTemplate {
   id: string
   name: string
@@ -34,6 +45,12 @@ interface PanelTemplate {
   icon: string
   rails: Omit<Rail, 'id'>[]
   elements: TemplateElement[]
+  /**
+   * Wires baked into the template. Indices reference `elements[]`. Ports are
+   * resolved to real portIds after the panel is materialised (see
+   * createPanelFromTemplate).
+   */
+  wires: TemplateWire[]
 }
 
 // ─── Element factory helpers (use a per-rail cursor for placement) ──────────
@@ -162,13 +179,27 @@ function buildApartment(spec: Spec): PanelTemplate {
   cursors[2] = 0
 
   const elements: TemplateElement[] = []
+  const wires: TemplateWire[] = []
+
+  // Push helper returns the new element's index for wire wiring.
+  function push(el: TemplateElement): number {
+    elements.push(el)
+    return elements.length - 1
+  }
+  function feedFromRcd(rcdIdx: number, downstreamMcbIdx: number, label: string) {
+    // RCD bottom L1/N → MCB top L1 (MCBs are single-pole so only L1 present)
+    wires.push({ fromIndex: rcdIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: downstreamMcbIdx, toSide: 'top', toPhase: 'L1', label })
+  }
 
   // ─── Rail 0: INPUT (main switch, relay, dedicated & non-disc. lines) ───
-  elements.push(masterSwitch(0, rooms >= 4 ? 80 : 63))
-  elements.push(voltageRelay(0))
+  const masterIdx = push(masterSwitch(0, rooms >= 4 ? 80 : 63))
+  const relayIdx  = push(voltageRelay(0))
+  // Master ── (L1, N) → Voltage relay (the full 2-pole feed)
+  wires.push({ fromIndex: masterIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: relayIdx, toSide: 'top', toPhase: 'L1', label: 'L1' })
+  wires.push({ fromIndex: masterIdx, fromSide: 'bottom', fromPhase: 'N',  toIndex: relayIdx, toSide: 'top', toPhase: 'N',  label: 'N' })
 
   // Non-disconnectable — permanent MCB for essentials (bypasses group RCDs).
-  elements.push({
+  const essentialIdx = push({
     railIndex: 0,
     typeId: 'mcb_1p',
     slotStart: place(0, 1),
@@ -178,9 +209,10 @@ function buildApartment(spec: Spec): PanelTemplate {
     circuitTag: 'Essential',
     properties: { kind: 'mcb', rating: 16, curve: 'C', breakingCapacity: 6 },
   })
+  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: essentialIdx, toSide: 'top', toPhase: 'L1', label: 'Essential' })
 
   // Dedicated kitchen stove — 32A / 6mm²
-  elements.push({
+  const stoveIdx = push({
     railIndex: 0,
     typeId: 'mcb_1p',
     slotStart: place(0, 1),
@@ -190,9 +222,10 @@ function buildApartment(spec: Spec): PanelTemplate {
     circuitTag: 'Kitchen',
     properties: { kind: 'mcb', rating: 32, curve: 'C', breakingCapacity: 6 },
   })
+  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: stoveIdx, toSide: 'top', toPhase: 'L1', label: 'Stove' })
 
   // Dedicated air-conditioner — 16A / 4mm²
-  elements.push({
+  const acIdx = push({
     railIndex: 0,
     typeId: 'mcb_1p',
     slotStart: place(0, 1),
@@ -202,10 +235,11 @@ function buildApartment(spec: Spec): PanelTemplate {
     circuitTag: 'HVAC',
     properties: { kind: 'mcb', rating: 16, curve: 'C', breakingCapacity: 6 },
   })
+  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: acIdx, toSide: 'top', toPhase: 'L1', label: 'A/C' })
 
   // 4+ rooms → second air-conditioner
   if (rooms >= 4) {
-    elements.push({
+    const ac2Idx = push({
       railIndex: 0,
       typeId: 'mcb_1p',
       slotStart: place(0, 1),
@@ -215,44 +249,63 @@ function buildApartment(spec: Spec): PanelTemplate {
       circuitTag: 'HVAC',
       properties: { kind: 'mcb', rating: 16, curve: 'C', breakingCapacity: 6 },
     })
+    wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: ac2Idx, toSide: 'top', toPhase: 'L1', label: 'A/C 2' })
   }
 
-  // Neutral bar caps the input rail
-  elements.push(neutralBar(0))
+  // Neutral bar caps the input rail (pole-0, no port wiring — reference only)
+  push(neutralBar(0))
 
   // ─── Rail 1: ROOM & KITCHEN GROUPS ───
   const firstGroupSize = Math.min(rooms, 2)
-  elements.push(rcd(1, 40, 30, `RCD Rooms 1–${firstGroupSize}`))
+  const rcdRoomsIdx = push(rcd(1, 40, 30, `RCD Rooms 1–${firstGroupSize}`))
+  // Feed RCD from voltage relay (cross-rail)
+  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: rcdRoomsIdx, toSide: 'top', toPhase: 'L1', label: 'L1' })
+  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'N',  toIndex: rcdRoomsIdx, toSide: 'top', toPhase: 'N',  label: 'N' })
   for (let r = 1; r <= firstGroupSize; r++) {
-    elements.push(mcb(1, 16, `Room ${r} sockets`, 'C', `Room ${r}`))
-    elements.push(mcb(1, 10, `Room ${r} lights`,  'B', `Room ${r}`))
+    const socketsIdx = push(mcb(1, 16, `Room ${r} sockets`, 'C', `Room ${r}`))
+    const lightsIdx  = push(mcb(1, 10, `Room ${r} lights`,  'B', `Room ${r}`))
+    feedFromRcd(rcdRoomsIdx, socketsIdx, `R${r} sockets`)
+    feedFromRcd(rcdRoomsIdx, lightsIdx,  `R${r} lights`)
   }
   if (hasHallway) {
-    elements.push(mcb(1, 10, 'Hallway light', 'B', 'Hallway'))
+    const hallIdx = push(mcb(1, 10, 'Hallway light', 'B', 'Hallway'))
+    feedFromRcd(rcdRoomsIdx, hallIdx, 'Hall')
   }
 
   if (rooms >= 3) {
-    elements.push(rcd(1, 40, 30, `RCD Rooms 3–${rooms}`))
+    const rcdRooms2Idx = push(rcd(1, 40, 30, `RCD Rooms 3–${rooms}`))
+    wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: rcdRooms2Idx, toSide: 'top', toPhase: 'L1', label: 'L1' })
+    wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'N',  toIndex: rcdRooms2Idx, toSide: 'top', toPhase: 'N',  label: 'N' })
     for (let r = 3; r <= rooms; r++) {
-      elements.push(mcb(1, 16, `Room ${r} sockets`, 'C', `Room ${r}`))
-      elements.push(mcb(1, 10, `Room ${r} lights`,  'B', `Room ${r}`))
+      const socketsIdx = push(mcb(1, 16, `Room ${r} sockets`, 'C', `Room ${r}`))
+      const lightsIdx  = push(mcb(1, 10, `Room ${r} lights`,  'B', `Room ${r}`))
+      feedFromRcd(rcdRooms2Idx, socketsIdx, `R${r} sockets`)
+      feedFromRcd(rcdRooms2Idx, lightsIdx,  `R${r} lights`)
     }
   }
 
   // Kitchen — its own RCD (dishwasher / dish drier are wet-area appliances)
-  elements.push(rcd(1, 40, 30, 'RCD Kitchen'))
-  elements.push(mcb(1, 16, 'Kitchen sockets', 'C', 'Kitchen'))
-  elements.push(mcb(1, 10, 'Kitchen lights',  'B', 'Kitchen'))
+  const rcdKitchenIdx = push(rcd(1, 40, 30, 'RCD Kitchen'))
+  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: rcdKitchenIdx, toSide: 'top', toPhase: 'L1', label: 'L1' })
+  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'N',  toIndex: rcdKitchenIdx, toSide: 'top', toPhase: 'N',  label: 'N' })
+  const kSocketsIdx = push(mcb(1, 16, 'Kitchen sockets', 'C', 'Kitchen'))
+  const kLightsIdx  = push(mcb(1, 10, 'Kitchen lights',  'B', 'Kitchen'))
+  feedFromRcd(rcdKitchenIdx, kSocketsIdx, 'K sockets')
+  feedFromRcd(rcdKitchenIdx, kLightsIdx,  'K lights')
 
   // ─── Rail 2: BATH & CROSS ───
   for (let b = 1; b <= bathrooms; b++) {
     const suffix = bathrooms > 1 ? ` ${b}` : ''
-    elements.push(rcd(2, 40, 10, `RCD Bath${suffix}`))
-    elements.push(mcb(2, 16, `Bath${suffix} sockets`, 'C', `Bath${suffix}`))
-    elements.push(mcb(2, 10, `Bath${suffix} lights`,  'B', `Bath${suffix}`))
+    const rcdBathIdx = push(rcd(2, 40, 10, `RCD Bath${suffix}`))
+    wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: rcdBathIdx, toSide: 'top', toPhase: 'L1', label: 'L1' })
+    wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'N',  toIndex: rcdBathIdx, toSide: 'top', toPhase: 'N',  label: 'N' })
+    const bathSocketsIdx = push(mcb(2, 16, `Bath${suffix} sockets`, 'C', `Bath${suffix}`))
+    const bathLightsIdx  = push(mcb(2, 10, `Bath${suffix} lights`,  'B', `Bath${suffix}`))
+    feedFromRcd(rcdBathIdx, bathSocketsIdx, `B${suffix} sockets`)
+    feedFromRcd(rcdBathIdx, bathLightsIdx,  `B${suffix} lights`)
   }
   if (useCross) {
-    elements.push(cross(2))
+    push(cross(2))
   }
 
   // Real DIN cabinets ship with all rails the same width. Size every rail to
@@ -279,6 +332,7 @@ function buildApartment(spec: Spec): PanelTemplate {
     icon: spec.icon,
     rails,
     elements,
+    wires,
   }
 }
 
@@ -350,6 +404,21 @@ export function createPanelFromTemplate(
     properties: { ...e.properties },
   }))
 
+  // Materialise the template's abstract wires into real Connection[] using the
+  // fresh element IDs. Wires targeting an out-of-range index (shouldn't happen
+  // for well-formed templates) are silently dropped.
+  const connections: Connection[] = (template.wires ?? []).flatMap((w) => {
+    const fromEl = elements[w.fromIndex]
+    const toEl = elements[w.toIndex]
+    if (!fromEl || !toEl) return []
+    return [{
+      id: uid(),
+      fromPortId: getPortId(fromEl.id, w.fromSide, w.fromPhase),
+      toPortId: getPortId(toEl.id, w.toSide, w.toPhase),
+      label: w.label ?? '',
+    }]
+  })
+
   return {
     id: uid(),
     name: panelName,
@@ -360,7 +429,7 @@ export function createPanelFromTemplate(
     frequency,
     rails,
     elements,
-    connections: [],
+    connections,
     annotations: [],
     inputCables: [],
   }

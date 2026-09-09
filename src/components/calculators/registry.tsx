@@ -23,6 +23,9 @@ import { SeriesDroppingResistorCalc } from './SeriesDroppingResistorCalc'
 import { ResistorColorCalc } from './ResistorColorCalc'
 import { SmdResistorCalc } from './SmdResistorCalc'
 import { FormulasReference } from './FormulasReference'
+import { ConduitFillCalc } from './ConduitFillCalc'
+import { UpstreamFaultCalc } from './UpstreamFaultCalc'
+import { EarthRodCalc } from './EarthRodCalc'
 
 export type CalcGroup = 'basic' | 'installation' | 'power' | 'electronics' | 'utility'
 
@@ -141,6 +144,30 @@ export const CALCULATORS: CalcDef[] = [
     descKey: 'calc.busbar.description',
     iconPath: icon('M3 8h18v3H3zM3 13h18v3H3z'),
     Component: BusbarCurrentCalc,
+  },
+  {
+    id: 'conduit_fill',
+    group: 'installation',
+    titleKey: 'calc.conduit_fill.title',
+    descKey: 'calc.conduit_fill.description',
+    iconPath: icon('M4 8a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V8zM8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01'),
+    Component: ConduitFillCalc,
+  },
+  {
+    id: 'upstream_fault',
+    group: 'installation',
+    titleKey: 'calc.upstream_fault.title',
+    descKey: 'calc.upstream_fault.description',
+    iconPath: icon('M4 4l8 8-4 4 4 4 8-8-4-4-4 4-8-8z'),
+    Component: UpstreamFaultCalc,
+  },
+  {
+    id: 'earth_rod',
+    group: 'installation',
+    titleKey: 'calc.earth_rod.title',
+    descKey: 'calc.earth_rod.description',
+    iconPath: icon('M12 3v13M6 20l12 0M8 16h8M9 12h6M10 8h4'),
+    Component: EarthRodCalc,
   },
 
   // ─── Power ─────────────────────────────────────────────

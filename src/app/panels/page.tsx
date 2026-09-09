@@ -225,11 +225,34 @@ function NewPanelModal({ open, onClose }: { open: boolean; onClose: () => void }
  * already has panels (they don't need it staring at them every time), expanded
  * automatically when the list is empty.
  */
+const STARTER_EXPANDED_KEY = 'voltra-starter-templates-expanded'
+
 function StarterTemplates() {
   const { t } = useTranslation()
   const router = useRouter()
   const { panels } = usePanelStore()
-  const [expanded, setExpanded] = useState(panels.length === 0)
+  // Persist the open/close preference so it survives back-navigation from the
+  // editor. Fall back to "open" for first-time users (no panels yet).
+  const [expanded, setExpanded] = useState<boolean>(true)
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(STARTER_EXPANDED_KEY)
+      if (stored === '0') setExpanded(false)
+      else if (stored === '1') setExpanded(true)
+      else setExpanded(panels.length === 0)
+    } catch {
+      setExpanded(panels.length === 0)
+    }
+    // Intentionally run once on mount — the user's toggle overrides thereafter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  function toggle() {
+    setExpanded((v) => {
+      const next = !v
+      try { window.localStorage.setItem(STARTER_EXPANDED_KEY, next ? '1' : '0') } catch {}
+      return next
+    })
+  }
 
   function spawn(templateId: string) {
     const tpl = PANEL_TEMPLATES.find((x) => x.id === templateId)
@@ -245,7 +268,7 @@ function StarterTemplates() {
     <div className="mb-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
       <button
         type="button"
-        onClick={() => setExpanded((v) => !v)}
+        onClick={toggle}
         className="flex w-full items-center gap-3 px-5 py-4 text-left touch-manipulation"
       >
         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
