@@ -40,8 +40,8 @@ export default function AmpacityPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
-      <Link href="/reference" className="mb-4 inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100">
-        <ArrowLeft size={14} /> {t('reference.back')}
+      <Link href="/" className="mb-4 inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100">
+        <ArrowLeft size={14} /> {t('reference.backHome')}
       </Link>
       <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{t('reference.sections.ampacity.title')}</h1>
       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{t('reference.sections.ampacity.desc')}</p>

@@ -6,7 +6,6 @@
     "tools": "Tools",
     "calculators": "Calculators",
     "learn": "Learn",
-    "reference": "Reference",
     "settings": "Settings",
     "about": "About",
     "install": "Install app",
@@ -1803,9 +1802,7 @@
     "ru": "Russian"
   },
   "reference": {
-    "pageTitle": "Reference",
-    "pageSubtitle": "Standards, symbols, wire colours, ampacity tables and a component encyclopedia — the material you look up rather than read cover-to-cover.",
-    "back": "Back to reference",
+    "backHome": "Home",
     "sections": {
       "standards":  { "title": "Standards library",     "desc": "Searchable index of IEC, EN, BS, NEC and GOST electrical standards with plain-language summaries." },
       "symbols":    { "title": "Symbol library",         "desc": "IEC 60617 and ANSI symbols for every common component, filterable by category." },
