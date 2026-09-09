@@ -4,6 +4,9 @@ import {
   ShieldAlert, ShieldCheck, Battery, Radio,
   Anchor, Layers, Rocket, Activity, GaugeCircle,
   BookOpen, Palette, ToggleRight, ArrowUpDown,
+  Sun, Plug, PlugZap, BatteryCharging, Link2,
+  CloudLightning, Flame, Triangle, Cable, Shield,
+  Star, Timer, Bug, Tag, Gauge,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { ElectricityIntroLesson } from './lessons/ElectricityIntroLesson'
@@ -25,6 +28,21 @@ import { ReadingDiagramsLesson } from './lessons/ReadingDiagramsLesson'
 import { WireColorsLesson } from './lessons/WireColorsLesson'
 import { ContactorLesson } from './lessons/ContactorLesson'
 import { TransformerBasicsLesson } from './lessons/TransformerBasicsLesson'
+import { SolarPvLesson } from './lessons/SolarPvLesson'
+import { EvChargingLesson } from './lessons/EvChargingLesson'
+import { UpsBasicsLesson } from './lessons/UpsBasicsLesson'
+import { BatteryChemistryLesson } from './lessons/BatteryChemistryLesson'
+import { BondingEarthingLesson } from './lessons/BondingEarthingLesson'
+import { SpdLightningLesson } from './lessons/SpdLightningLesson'
+import { AfddLesson } from './lessons/AfddLesson'
+import { ReactivePowerLesson } from './lessons/ReactivePowerLesson'
+import { InsulationTypesLesson } from './lessons/InsulationTypesLesson'
+import { IpRatingsLesson } from './lessons/IpRatingsLesson'
+import { StarDeltaLesson } from './lessons/StarDeltaLesson'
+import { RcTimeConstantLesson } from './lessons/RcTimeConstantLesson'
+import { FaultTreeLesson } from './lessons/FaultTreeLesson'
+import { NameplateLesson } from './lessons/NameplateLesson'
+import { MultimeterLesson } from './lessons/MultimeterLesson'
 
 export type LessonGroup = 'basics' | 'circuits' | 'safety' | 'practical' | 'advanced'
 export type LessonLevel = 'beginner' | 'intermediate' | 'advanced'
@@ -279,6 +297,87 @@ export const LESSONS: LessonDef[] = [
     color: '#0ea5e9',
     Component: VoltageDropCascadeLesson,
     relatedCalcs: ['voltage_drop', 'cable_size', 'cable_loss'],
+  },
+
+  // ─── Batch A: Practical/Beginner adds ─────────────────
+  {
+    id: 'solar_pv',       group: 'practical', level: 'intermediate', minutes: 6,
+    titleKey: 'learn.lessons.solar_pv.title', descKey: 'learn.lessons.solar_pv.description',
+    Icon: Sun, color: '#eab308', Component: SolarPvLesson, relatedCalcs: ['battery', 'power'],
+  },
+  {
+    id: 'ev_charging',    group: 'practical', level: 'beginner', minutes: 5,
+    titleKey: 'learn.lessons.ev_charging.title', descKey: 'learn.lessons.ev_charging.description',
+    Icon: PlugZap, color: '#0ea5e9', Component: EvChargingLesson, relatedCalcs: ['power', 'cable_size'],
+  },
+  {
+    id: 'ups_basics',     group: 'practical', level: 'intermediate', minutes: 5,
+    titleKey: 'learn.lessons.ups_basics.title', descKey: 'learn.lessons.ups_basics.description',
+    Icon: BatteryCharging, color: '#16a34a', Component: UpsBasicsLesson, relatedCalcs: ['battery'],
+  },
+  {
+    id: 'battery_chemistry', group: 'circuits', level: 'intermediate', minutes: 5,
+    titleKey: 'learn.lessons.battery_chemistry.title', descKey: 'learn.lessons.battery_chemistry.description',
+    Icon: Battery, color: '#059669', Component: BatteryChemistryLesson, relatedCalcs: ['battery'],
+  },
+  {
+    id: 'bonding_earthing', group: 'safety', level: 'intermediate', minutes: 4,
+    titleKey: 'learn.lessons.bonding_earthing.title', descKey: 'learn.lessons.bonding_earthing.description',
+    Icon: Link2, color: '#166534', Component: BondingEarthingLesson, relatedCalcs: ['fault', 'earth_rod'],
+  },
+
+  // ─── Batch B: Safety/Depth adds ─────────────────
+  {
+    id: 'spd_lightning',  group: 'safety', level: 'advanced', minutes: 6,
+    titleKey: 'learn.lessons.spd_lightning.title', descKey: 'learn.lessons.spd_lightning.description',
+    Icon: CloudLightning, color: '#f59e0b', Component: SpdLightningLesson, relatedCalcs: ['fault'],
+  },
+  {
+    id: 'afdd',           group: 'safety', level: 'advanced', minutes: 5,
+    titleKey: 'learn.lessons.afdd.title', descKey: 'learn.lessons.afdd.description',
+    Icon: Flame, color: '#dc2626', Component: AfddLesson, relatedCalcs: [],
+  },
+  {
+    id: 'reactive_power', group: 'advanced', level: 'intermediate', minutes: 6,
+    titleKey: 'learn.lessons.reactive_power.title', descKey: 'learn.lessons.reactive_power.description',
+    Icon: Triangle, color: '#7c3aed', Component: ReactivePowerLesson, relatedCalcs: ['pfc', 'ohms_ac'],
+  },
+  {
+    id: 'insulation_types', group: 'practical', level: 'intermediate', minutes: 4,
+    titleKey: 'learn.lessons.insulation_types.title', descKey: 'learn.lessons.insulation_types.description',
+    Icon: Cable, color: '#65a30d', Component: InsulationTypesLesson, relatedCalcs: ['cable_size', 'cable_loss'],
+  },
+  {
+    id: 'ip_ratings',     group: 'practical', level: 'beginner', minutes: 4,
+    titleKey: 'learn.lessons.ip_ratings.title', descKey: 'learn.lessons.ip_ratings.description',
+    Icon: Shield, color: '#0891b2', Component: IpRatingsLesson, relatedCalcs: [],
+  },
+
+  // ─── Batch C: Engineering/Diagnostic adds ─────────────────
+  {
+    id: 'star_delta',     group: 'circuits', level: 'intermediate', minutes: 4,
+    titleKey: 'learn.lessons.star_delta.title', descKey: 'learn.lessons.star_delta.description',
+    Icon: Star, color: '#7c3aed', Component: StarDeltaLesson, relatedCalcs: ['motor', 'power'],
+  },
+  {
+    id: 'rc_time_constant', group: 'circuits', level: 'intermediate', minutes: 4,
+    titleKey: 'learn.lessons.rc_time_constant.title', descKey: 'learn.lessons.rc_time_constant.description',
+    Icon: Timer, color: '#3b82f6', Component: RcTimeConstantLesson, relatedCalcs: ['cap_net', 'resistor_net'],
+  },
+  {
+    id: 'fault_tree',     group: 'practical', level: 'intermediate', minutes: 5,
+    titleKey: 'learn.lessons.fault_tree.title', descKey: 'learn.lessons.fault_tree.description',
+    Icon: Bug, color: '#dc2626', Component: FaultTreeLesson, relatedCalcs: ['fault'],
+  },
+  {
+    id: 'nameplate',      group: 'practical', level: 'beginner', minutes: 4,
+    titleKey: 'learn.lessons.nameplate.title', descKey: 'learn.lessons.nameplate.description',
+    Icon: Tag, color: '#64748b', Component: NameplateLesson, relatedCalcs: ['motor', 'power'],
+  },
+  {
+    id: 'multimeter',     group: 'practical', level: 'beginner', minutes: 5,
+    titleKey: 'learn.lessons.multimeter.title', descKey: 'learn.lessons.multimeter.description',
+    Icon: Gauge, color: '#f97316', Component: MultimeterLesson, relatedCalcs: ['ohms_dc'],
   },
 ]
 

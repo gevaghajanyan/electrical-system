@@ -616,6 +616,363 @@
       "advanced": "Advanced engineering"
     },
     "lessons": {
+      "solar_pv": {
+        "title": "Solar PV basics",
+        "description": "Panels, MPPT, string vs micro-inverter — how a rooftop system turns sunlight into kilowatt-hours",
+        "intro": "A solar PV system converts sunlight into DC, then an inverter turns it into grid-compatible AC. Output depends on panel wattage, count, daily sun hours, and system efficiency (dust, wiring loss, inverter). Three common topologies trade off cost, shade tolerance and monitoring granularity.",
+        "topology": { "string": "String inverter", "micro": "Microinverters", "off_grid": "Off-grid + battery" },
+        "topologyExplain": {
+          "string": "One central inverter for all panels in a series string. Cheapest per watt, but shade on one panel drops the whole string.",
+          "micro": "One micro-inverter per panel. Handles per-panel shade well and gives per-panel monitoring, but ~30% more expensive.",
+          "off_grid": "PV + charge controller + battery bank + inverter. Independent from the grid — sizing must cover the worst-case day."
+        },
+        "panels": "Number of panels",
+        "panelW": "Panel wattage",
+        "sunHours": "Peak sun-hours / day",
+        "eff": "System efficiency",
+        "arrayKw": "Array size",
+        "dailyKwh": "Daily output",
+        "annualKwh": "Annual output",
+        "point1": "Peak sun-hours (kWh/m²/day) vary by location — 3.5 in the UK, 4.5–5 in southern Europe, 6+ in Middle East and North Africa",
+        "point2": "System efficiency is typically 75–85% after cable losses, MPPT losses, inverter losses, and soiling",
+        "point3": "MPPT (Maximum Power Point Tracking) is what modern inverters do to squeeze the most watts out of variable panel V-I curves"
+      },
+      "ev_charging": {
+        "title": "EV charging (Mode / Type / kW)",
+        "description": "Mode 1/2/3, Type 1/2 connectors, and the math behind charging times",
+        "intro": "EV charging is standardised across three IEC \"modes\" that map to safety and communication: Mode 2 is the emergency cable, Mode 3 is a dedicated AC wallbox, DC fast is Mode 4 (CCS/CHAdeMO). Charge time = battery kWh / power kW, minus the 5–15 % that gets lost as heat.",
+        "modes": { "mode2": "Mode 2 (cable)", "mode3": "Mode 3 (AC wallbox)", "dc_fast": "DC fast (Mode 4)" },
+        "modeExplain": {
+          "mode2": "Portable cable with an in-line control box — plugs into a normal socket. Slow (2–3 kW) but no installation. Meant as backup, not daily.",
+          "mode3": "Dedicated wall-mounted AC unit — 7 kW (1-phase 32 A) up to 22 kW (3-phase 32 A). The standard home / workplace charger.",
+          "dc_fast": "Public DC fast chargers (CCS, CHAdeMO) — 50 kW to 350 kW. Bypasses the on-board AC-DC converter for road-trip speeds."
+        },
+        "current": "Current",
+        "voltage": "Voltage (1-phase)",
+        "batteryKwh": "Battery capacity",
+        "socDelta": "State-of-charge delta",
+        "power": "Charging power",
+        "duration": "Estimated time",
+        "point1": "3-phase charging = √3 × 400 × I ≈ 690 W per amp — much faster than single-phase for the same amp rating",
+        "point2": "The car's on-board charger sets the AC ceiling — most 2020+ EVs are 11 kW; older ones cap at 3.6 or 7.4 kW",
+        "point3": "Real-world DC fast charging slows dramatically above ~80 % state-of-charge to protect the battery — don't chase 100 %"
+      },
+      "ups_basics": {
+        "title": "UPS basics",
+        "description": "Offline vs line-interactive vs online, kVA vs kW sizing, and runtime math",
+        "intro": "An Uninterruptible Power Supply keeps critical loads alive during a mains outage. Three architectures trade off cost, transfer time, and how much conditioning the load actually sees. Runtime = (battery Ah × V × inverter efficiency) / load watts.",
+        "types": { "offline": "Offline", "line_interactive": "Line-interactive", "online": "Double-conversion (online)" },
+        "typeExplain": {
+          "offline": "Cheapest — mains passes through unless it fails, then flips to battery in ~5–10 ms. Fine for a home PC.",
+          "line_interactive": "Adds AVR (auto voltage regulation) — cleans up sags/surges without switching to battery. Sweet spot for small servers.",
+          "online": "Load is always powered from the inverter (battery in the middle). Zero transfer time and perfect sine wave — for medical / IT / industrial."
+        },
+        "kva": "UPS rating",
+        "pf": "UPS power factor",
+        "loadW": "Load",
+        "batteryAh": "Battery capacity",
+        "batteryV": "Battery bank voltage",
+        "invEff": "Inverter efficiency",
+        "maxW": "Max real power",
+        "runtime": "Estimated runtime",
+        "transferMs": "Transfer time",
+        "overload": "⚠ Load exceeds UPS real-power capacity (kVA × pf). Either downsize the load, raise the kVA rating, or move some circuits off this UPS.",
+        "point1": "UPS ratings are in kVA (apparent power); real load capacity = kVA × PF, usually 0.7–0.9",
+        "point2": "Runtime scales inversely with load — half the load = ~2× the runtime (not exactly, because Peukert's coefficient bites)",
+        "point3": "Online UPS is the only architecture with truly zero transfer time — the others have 4–10 ms which is fine for computers but not for magnetics or motors"
+      },
+      "battery_chemistry": {
+        "title": "Battery chemistries compared",
+        "description": "Li-ion, LiFePO4, lead-acid, Ni-MH — voltage, cycles, energy density, safety",
+        "intro": "Not all batteries are equal. Chemistry sets the fundamental trade-offs: energy density (Wh/kg), cycle life, safety, cost, and self-discharge. Pick by application: a phone wants Li-ion, a home battery wants LiFePO4, a car starter wants lead-acid.",
+        "chem": { "lifepo4": "LiFePO4", "liion": "Li-ion (NMC)", "lead_acid": "Lead-acid", "nimh": "Ni-MH" },
+        "property": "Property",
+        "props": {
+          "nominalV":       "Nominal cell voltage",
+          "energyDensity":  "Energy density",
+          "cycles":         "Typical cycle life",
+          "safety":         "Thermal safety",
+          "cost":           "Cost per kWh",
+          "selfDischarge":  "Self-discharge / month"
+        },
+        "values": {
+          "lifepo4":   { "nominalV": "3.2 V", "energyDensity": "90–120 Wh/kg",  "cycles": "3 000–6 000",   "safety": "Very safe (no thermal runaway)", "cost": "$$",  "selfDischarge": "~2 %" },
+          "liion":     { "nominalV": "3.7 V", "energyDensity": "150–260 Wh/kg", "cycles": "500–1 500",     "safety": "Requires BMS + cooling",         "cost": "$$$", "selfDischarge": "~3 %" },
+          "lead_acid": { "nominalV": "2.0 V", "energyDensity": "30–50 Wh/kg",   "cycles": "300–800",       "safety": "Safe, but gases when charging",  "cost": "$",   "selfDischarge": "~5 %" },
+          "nimh":      { "nominalV": "1.2 V", "energyDensity": "60–120 Wh/kg",  "cycles": "500–1 000",     "safety": "Safe, tolerant of abuse",        "cost": "$$",  "selfDischarge": "~20 %" }
+        },
+        "bestFor": "Best for",
+        "bestForText": {
+          "lifepo4":   "Home solar batteries, e-bikes, marine — long life and safety trump weight",
+          "liion":     "Phones, laptops, EVs, drones — anywhere weight matters most",
+          "lead_acid": "Car starter, UPS, forklift — cheap and rugged, high peak current",
+          "nimh":      "AA / AAA rechargeables, hybrid cars — safe and forgiving"
+        },
+        "point1": "LiFePO4 has 3–5× the cycle life of NMC Li-ion — worth the lower energy density for stationary storage",
+        "point2": "Lead-acid is dead cheap but heavy and only ~50 % usable depth-of-discharge without killing cycles",
+        "point3": "Ni-MH self-discharges fast (20 %/mo) — don't leave charged packs on the shelf for months"
+      },
+      "bonding_earthing": {
+        "title": "Bonding vs earthing",
+        "description": "Both use green-yellow wire, both go to earth — but they solve different problems",
+        "intro": "Earthing (grounding) is one wire from the appliance chassis to the earth electrode — it gives fault current a path to trip the RCD or MCB. Bonding is a wire between metal parts that are already there for other reasons — pipes, structural steel — to hold them all at the same potential so touching two of them can't shock you. Different job, different wire, both mandatory.",
+        "modes": { "earthing": "Earthing only", "bonding": "Bonding only", "both": "Both (correct)" },
+        "modeExplain": {
+          "earthing":  "The appliance PE has a path to earth — good — but pipes and structure sit at a different potential. Touching the appliance and a pipe at the same time could still shock you.",
+          "bonding":   "The pipes are all at the same potential — good — but there's no fault path back to trip protection. A live-chassis fault would sit undetected.",
+          "both":      "The correct installation. Earthing gives the fault current somewhere to go (RCD trips); bonding equalises everything metallic so no dangerous voltage develops between touchable surfaces."
+        },
+        "point1": "Earthing = protective (creates a fault path). Bonding = equipotential (removes voltage between metal parts)",
+        "point2": "In a bathroom the two are equally important — soaked skin plus a small potential difference is dangerous",
+        "point3": "Green/yellow wire is used for both, but a bonding conductor is sized to the local metal work, not the supply cable"
+      },
+      "spd_lightning": {
+        "title": "Lightning & SPD (Type 1/2/3)",
+        "description": "Type 1 at the origin, Type 2 in the panel, Type 3 at sensitive loads — the surge cascade",
+        "intro": "A lightning strike doesn't have to hit your house to damage it — a nearby strike induces thousands of volts on nearby cables. Surge Protection Devices divert that transient to earth before it reaches sensitive electronics. IEC 61643 defines three types by mounting location and energy capacity.",
+        "types": { "t1": "Type 1", "t2": "Type 2", "t3": "Type 3" },
+        "iimp": "Impulse current",
+        "up": "Voltage protection Up",
+        "where": "Where installed",
+        "whereText": { "origin": "Service entrance", "main_dist": "Main distribution", "sub_dist": "Sub-panel / socket" },
+        "explain": {
+          "t1": "For buildings with an external lightning protection system (rod on the roof). Handles the direct-strike energy on 10/350 µs impulse. Mounted at the service entry.",
+          "t2": "The everyday SPD — installed in the main consumer unit. Clips induced surges from nearby strikes. Must be paired with a T1 upstream if the building is exposed.",
+          "t3": "Fine-clamp SPD close to sensitive loads (server rack, medical, entertainment). Used in cascade after T2 to knock the voltage down further."
+        },
+        "point1": "SPDs are consumables — they degrade with each surge. Look for a status window and replace when it turns red",
+        "point2": "SPD needs a good earth to work — poor earthing multiplies Up and reduces protection",
+        "point3": "Coordination matters: T1 must fire before T2, T2 before T3. Manufacturer tables spell out the coordination distance"
+      },
+      "afdd": {
+        "title": "Arc Fault Detection (AFDD)",
+        "description": "Detects the RF signature of an electrical arc — the fire risk MCBs and RCDs miss",
+        "intro": "Arc faults happen when a wire is loose, damaged, or a plug is worn — a tiny arc jumps the gap without drawing enough current to trip an MCB or the leakage to trip an RCD, but the arc temperature can start a fire. An AFDD watches the current waveform for the high-frequency signature of arcing and trips within milliseconds.",
+        "scenarios": { "clean": "Clean load", "series_arc": "Series arc", "parallel_arc": "Parallel arc", "harmonics": "Non-linear load" },
+        "status": {
+          "clean":         "✓ Nominal — smooth sine, no arc detected",
+          "series_arc":    "⚠ Series arc — random dropouts at zero-crossing. AFDD would trip.",
+          "parallel_arc":  "⚠ Parallel arc — high-current spikes. AFDD would trip.",
+          "harmonics":     "✓ Harmonic-rich but stable — AFDD ignores non-linear loads (LED drivers, VFDs)"
+        },
+        "explain": {
+          "clean":        "Textbook resistive load — no arcing.",
+          "series_arc":   "A loose terminal or broken strand causes intermittent arcing along the current path. Little current change but big fire risk.",
+          "parallel_arc": "Damaged insulation causes arcing between conductors. High peak currents but often below the MCB's instantaneous trip.",
+          "harmonics":    "Modern electronics draw non-sinusoidal current. An AFDD's algorithm has to distinguish 'noisy but safe' from 'arc-fault'."
+        },
+        "point1": "AFDD covers a fire hazard neither MCB (needs overload) nor RCD (needs earth leak) can see",
+        "point2": "IEC 60364-4-42 and NEC 210.12 now require AFDDs in bedrooms and other high-risk circuits",
+        "point3": "AFDD often combines AF + MCB + RCD in one 2-module device — pricier, but replaces three devices"
+      },
+      "reactive_power": {
+        "title": "Reactive power (kW / kVA / kVAR)",
+        "description": "The power triangle, cos φ, and why the utility bills you for kVA on big loads",
+        "intro": "Not all the power a load draws does work. The current flowing to a motor or transformer includes a chunk that goes back and forth building magnetic fields — reactive power (VAR). Real power (W) does the actual job. Apparent power (VA) is what the cables and generators have to carry. cos φ is the ratio of real to apparent — the closer to 1, the more efficient.",
+        "p": "Active power P",
+        "pf": "Power factor cos φ",
+        "currentAt230": "Line current @ 230 V",
+        "wastedI2R": "I²R loss / metre",
+        "point1": "P = S · cos φ, Q = S · sin φ, S² = P² + Q² — the power triangle",
+        "point2": "Adding capacitors (PFC) supplies the reactive current locally so it doesn't flow all the way from the generator",
+        "point3": "Bad PF doesn't cost energy directly — it costs cable capacity and generator capacity. Utilities bill big loads by kVA, not kW"
+      },
+      "insulation_types": {
+        "title": "Cable insulation types",
+        "description": "PVC, XLPE, LSZH, rubber — temperature ratings, fire behaviour, when to use each",
+        "intro": "The insulation around a conductor decides how hot it can run, how it behaves in a fire, and where you're allowed to install it. Four families dominate: PVC (cheap and everywhere), XLPE (higher temp), LSZH (public buildings), rubber (flexible and industrial).",
+        "types": { "pvc": "PVC", "xlpe": "XLPE", "lszh": "LSZH", "rubber": "Rubber (EPR)" },
+        "maxTemp": "Max conductor temp",
+        "fire": "Fire behaviour",
+        "fireHeader": "Fire behaviour",
+        "fire.pvc":    "Self-extinguishing, but releases HCl (toxic smoke)",
+        "fire.xlpe":   "Self-extinguishing, tougher than PVC at high temps",
+        "fire.lszh":   "Low smoke, zero halogen — safe for enclosed public spaces",
+        "fire.rubber": "Depends on compound — most are self-extinguishing",
+        "example": "Common types",
+        "explain": {
+          "pvc":    "The default for indoor wiring. Cheap, easy to strip, good enough for 70 °C circuits. Don't use where smoke inhalation is a hazard.",
+          "xlpe":   "Cross-linked polyethylene — handles 90 °C, better ampacity in the same cross-section. Standard for feeders and outdoor cables.",
+          "lszh":   "Halogen-free jacket — no toxic smoke in a fire. Mandatory in tunnels, airports, hospitals, cruise ships.",
+          "rubber": "Very flexible and abrasion-resistant. Used on portable tools, welders, stage lighting — anywhere the cable moves."
+        },
+        "point1": "PVC is the default; XLPE when you need higher ampacity; LSZH when smoke is the hazard; rubber when flexibility is",
+        "point2": "Max conductor temperature sets the ampacity table — XLPE at 90 °C carries ~15 % more current than PVC at 70 °C",
+        "point3": "Never install PVC in a plenum or crawl space where a fire would trap the toxic smoke"
+      },
+      "ip_ratings": {
+        "title": "IP ratings — enclosures for the environment",
+        "description": "IP20 vs IP44 vs IP65/67 — what the two digits actually mean",
+        "intro": "IEC 60529 uses IP + 2 digits to describe an enclosure's resistance to solids (first digit, 0–6) and liquids (second digit, 0–9). Higher numbers = better protection. Pick the wrong rating for the location and you'll be rebuilding after the first rainy season.",
+        "solid": "First digit — solids (0–6)",
+        "liquid": "Second digit — liquids (0–9)",
+        "solidHeader": "Solid ingress",
+        "liquidHeader": "Liquid ingress",
+        "rating": "Rating",
+        "solidValues": {
+          "no":              "0 — no protection",
+          "50mm":            "1 — objects ≥ 50 mm (hands)",
+          "12mm":            "2 — objects ≥ 12 mm (fingers)",
+          "2.5mm":           "3 — objects ≥ 2.5 mm (tools, wires)",
+          "1mm":             "4 — objects ≥ 1 mm (small wires)",
+          "dust_protected":  "5 — dust-protected (limited ingress OK)",
+          "dust_tight":      "6 — dust-tight (no ingress)"
+        },
+        "liquidValues": {
+          "no":              "0 — no protection",
+          "drip":            "1 — vertical drips",
+          "drip15":          "2 — drips at 15° tilt",
+          "spray":           "3 — sprays up to 60° from vertical",
+          "splash":          "4 — splashing from any direction",
+          "jet":             "5 — low-pressure jets from any direction",
+          "jet_powerful":    "6 — high-pressure jets, heavy seas",
+          "immersion":       "7 — immersion up to 1 m for 30 min",
+          "submersion":      "8 — continuous submersion (specify depth)",
+          "high_pressure":   "9 — high-pressure, high-temp jets (steam cleaning)"
+        },
+        "suitableFor": "Typical use",
+        "suitability": {
+          "controlled":  "Ultra-controlled clean rooms only",
+          "indoor_dry":  "Living rooms, offices, dry indoor spaces",
+          "bathroom":    "Bathroom zone 3, splash-prone kitchens",
+          "outdoor_dry": "Covered outdoor porches, garages",
+          "outdoor_wet": "Fully exposed outdoor — garden, terrace",
+          "submerged":   "Pond pumps, dishwashers, marine equipment"
+        },
+        "point1": "IP20 is fine indoors; IP44 for bathrooms and covered outdoor; IP65 for exposed outdoor sockets",
+        "point2": "The 2nd digit tests are cumulative — an IP68 device also passes IP67, IP66, IP65, and so on",
+        "point3": "IP69K exists as an extension — high-temp, high-pressure jets for wash-down industries (food processing, mining)"
+      },
+      "star_delta": {
+        "title": "Motor star vs delta connection",
+        "description": "Same windings, two ways to connect them — different voltage, current, torque",
+        "intro": "A 3-phase induction motor has three windings. Connect their ends into a common point → star (Y). Connect them tail-to-head in a loop → delta (Δ). Same motor, but star sees phase voltage (√3× less) so each winding runs at 1/√3 the current — used for soft-starting or lower-power operation.",
+        "star": "Star (Y)",
+        "delta": "Delta (Δ)",
+        "vWinding": "Winding voltage",
+        "iLine": "Line current (at same phase I)",
+        "power": "Delivered power",
+        "explain": {
+          "star":  "Each winding sees phase voltage (230 V in a 400 V system). Lower current, lower torque — ideal for starting a motor before switching to Δ.",
+          "delta": "Each winding sees line voltage (400 V). Full torque and full current — normal running mode for motors marked '400 V Δ'."
+        },
+        "point1": "Delta current = √3 × Star current for the same voltage — Y-Δ starting cuts inrush to ~1/3",
+        "point2": "Whether Y or Δ is 'normal' depends on the nameplate — a '230/400 V, Δ/Y' motor runs in Δ on 230 V systems, Y on 400 V",
+        "point3": "The star point can be brought out as a 4th terminal — that's the neutral for 3-phase 4-wire systems"
+      },
+      "rc_time_constant": {
+        "title": "RC charging (time constant τ)",
+        "description": "Capacitor voltage vs time — the universal 63 % / 5τ rule",
+        "intro": "When you close a switch to charge a capacitor through a resistor, the voltage doesn't jump to the supply — it climbs exponentially. The time constant τ = R × C tells you the pace: after 1τ the cap is 63 % charged, after 5τ it's 99 % done. The same maths governs discharging, RC filters, and every 555-timer circuit.",
+        "R": "Resistance R",
+        "C": "Capacitance C",
+        "charged": "Charged now",
+        "t5": "5τ (fully charged)",
+        "point1": "τ (in seconds) = R (in Ω) × C (in F). 10 kΩ × 100 µF = 1 second",
+        "point2": "After 1τ = 63 %; 2τ = 86 %; 3τ = 95 %; 5τ = 99 % — same shape regardless of scale",
+        "point3": "RC filters use this same exponential — a low-pass filter's cutoff is 1 / (2π · RC)"
+      },
+      "fault_tree": {
+        "title": "\"My breaker keeps tripping\" — a diagnostic tree",
+        "description": "Answer yes/no to symptoms and land on the likely cause + first-response action",
+        "intro": "A tripped breaker is the safety system doing its job. But which job? Overload, short circuit, earth leakage, surge damage, or nuisance-tripping? Walk through the questions below — each answer narrows the fault space until one candidate is left.",
+        "questions": {
+          "q_immediately":      "Does the breaker trip immediately when you reset it — even with everything unplugged?",
+          "q_hot_wire":         "Do you see burn marks, smell melted plastic, or find a hot wire?",
+          "q_after_appliance":  "Does it trip only after plugging in / turning on a specific appliance?",
+          "q_rcd_only":         "Is it the RCD (not the MCB) that trips?",
+          "q_after_storm":      "Did it first happen after a lightning storm or grid glitch?"
+        },
+        "yes": "Yes",
+        "no": "No",
+        "diagnosis": "Likely cause",
+        "action": "First response",
+        "back": "Back",
+        "restart": "Restart",
+        "results": {
+          "r_short":        { "title": "Short circuit",             "desc": "L touches N or PE somewhere on the fixed wiring. The MCB trips instantly on magnetic detection.",           "action": "De-energise the circuit at the panel. Do NOT reset until you've traced and repaired the fault — usually a nail through a cable or a burnt junction box." },
+          "r_overload":     { "title": "Overload on that appliance", "desc": "A specific appliance draws more than the circuit's rating (or the MCB's curve).",                            "action": "Move the appliance to a higher-rated circuit, replace with a lower-power model, or upgrade the circuit cable + MCB together (never the MCB alone)." },
+          "r_leakage":      { "title": "Earth leakage",              "desc": "Current is escaping to earth — wet appliance, damaged insulation, or a nuisance-cumulative leak.",           "action": "Unplug everything on the RCD, reset it, then plug loads in one by one until it trips again. That's your culprit." },
+          "r_surge_damage": { "title": "Surge damaged the breaker",  "desc": "A lightning-induced spike destroyed the breaker or a downstream device — sometimes it trips because it can no longer hold contact.", "action": "Replace the tripped breaker. Then install an SPD (Type 2 minimum) so the next surge is absorbed instead of destroying protection." },
+          "r_nuisance":     { "title": "Nuisance trip",              "desc": "Motor inrush, cold-filament bulbs, or a cumulative harmonic overload can trip C-curve breakers.",              "action": "Try a D-curve (or higher-rated same-cable) breaker for motor circuits. Or spread loads across more MCBs so no single one sees the whole inrush." }
+        },
+        "point1": "Immediate re-trip = short circuit. Slow re-trip after minutes = overload. RCD-only = earth leakage. That's 90 % of the tree",
+        "point2": "Always fix the ROOT CAUSE. Replacing an MCB with a bigger one just moves the fire risk to the cable",
+        "point3": "If you can't isolate the fault safely, call a licensed electrician. Fault-finding on live circuits is not DIY territory"
+      },
+      "nameplate": {
+        "title": "Reading a nameplate",
+        "description": "Motor, MCB, transformer — decode the numbers stamped on the plate",
+        "intro": "Every electrical device carries a small metal or laminated plate with its critical ratings. Learn to read it and you can size cables, pick protection, and diagnose failures without a datasheet. Tap the fields below to see what each stamp means.",
+        "kinds": { "motor": "Motor", "mcb": "MCB", "transformer": "Transformer" },
+        "tapHint": "Tap a marker on the plate to see what that stamp means.",
+        "example": {
+          "motor.power":       "P 4 kW",
+          "motor.rpm":         "1450 rpm",
+          "motor.voltage":     "400 V Δ",
+          "motor.current":     "8.5 A",
+          "motor.pf":          "cos φ 0.83",
+          "motor.freq":        "50 Hz",
+          "motor.class":       "F IE3",
+          "motor.ip":          "IP 55",
+          "mcb.rating":        "C 16A",
+          "mcb.curve":         "Curve C",
+          "mcb.icu":           "Icu 6 kA",
+          "mcb.voltage":       "230/400 V ~",
+          "mcb.poles":         "1P + N",
+          "mcb.standard":      "EN 60898",
+          "transformer.kva":   "630 kVA",
+          "transformer.voltage":"20/0.4 kV",
+          "transformer.current":"18.2/909 A",
+          "transformer.uk":    "uk 4 %",
+          "transformer.vector":"Dyn11",
+          "transformer.cooling":"ONAN"
+        },
+        "field": {
+          "motor.power":        { "label": "Mechanical output power", "desc": "The shaft power the motor delivers under nominal load, in kW or HP. Electrical input = P / (η · cos φ)." },
+          "motor.rpm":          { "label": "Nominal speed",           "desc": "Rotor speed at rated load. Synchronous speed = 60·f/pole-pairs; nameplate is 2–5 % slower due to slip." },
+          "motor.voltage":      { "label": "Voltage & connection",    "desc": "Voltage the windings expect and how to connect them. '400 V Δ' = delta on a 400 V system; '230/400 V Δ/Y' = both wiring options." },
+          "motor.current":      { "label": "Full-load current (FLC)", "desc": "Line current at rated load — used to size the cable, MCB and thermal overload." },
+          "motor.pf":           { "label": "Power factor",            "desc": "Ratio of real to apparent power at full load. Lower PF = more reactive current for the same shaft power." },
+          "motor.freq":         { "label": "Rated frequency",         "desc": "50 or 60 Hz. A 60 Hz motor on 50 Hz runs slower and hotter (V/Hz mismatch)." },
+          "motor.class":        { "label": "Insulation class & efficiency", "desc": "F = insulation good up to 155 °C. IE3 = high-efficiency class (IEC 60034-30)." },
+          "motor.ip":           { "label": "IP rating",               "desc": "Enclosure protection — see the IP ratings lesson. IP55 = dust-protected + jet-water." },
+          "mcb.rating":         { "label": "Rated current In",        "desc": "Current the breaker carries indefinitely. Cable ampacity must exceed this at the installation conditions." },
+          "mcb.curve":          { "label": "Trip curve",              "desc": "B (3–5×In), C (5–10×In), D (10–20×In) — determines how quickly the magnetic trip fires vs inrush current." },
+          "mcb.icu":            { "label": "Breaking capacity Icu",   "desc": "Maximum short-circuit current the MCB can safely interrupt without welding shut. Must exceed your fault current." },
+          "mcb.voltage":        { "label": "Voltage rating",          "desc": "Nominal 1-phase / 3-phase supply the MCB is designed for." },
+          "mcb.poles":          { "label": "Poles",                   "desc": "1P, 1P+N, 2P, 3P, 4P — which conductors the breaker switches." },
+          "mcb.standard":       { "label": "Compliance standard",     "desc": "EN 60898 for household; EN 60947-2 for industrial. Determines test conditions." },
+          "transformer.kva":    { "label": "Apparent power rating",   "desc": "Design load in kVA. Real power = kVA × PF. Sets the maximum thermal capacity." },
+          "transformer.voltage":{ "label": "Voltage ratio",           "desc": "Primary / secondary no-load voltage — e.g. 20 kV MV to 400 V LV." },
+          "transformer.current":{ "label": "Rated currents",          "desc": "Full-load current on each winding. Used to size cables and protection." },
+          "transformer.uk":     { "label": "Short-circuit impedance", "desc": "Percentage voltage drop at full load. Sets both the voltage regulation and the prospective fault current." },
+          "transformer.vector": { "label": "Vector group",            "desc": "e.g. Dyn11 = delta primary, star secondary with neutral, 30° lag. Determines parallel-operation compatibility." },
+          "transformer.cooling":{ "label": "Cooling method",          "desc": "ONAN = Oil Natural Air Natural. First letter oil, second air, third natural/forced." }
+        },
+        "point1": "The nameplate is a promise — the manufacturer says the device will work under exactly these conditions. Derate below them and it lasts longer",
+        "point2": "Voltage/frequency mismatch kills motors — 50 Hz motor on 60 Hz runs 20 % faster; 60 Hz on 50 Hz overheats",
+        "point3": "MCB Icu must exceed your prospective fault current — see the upstream_fault calculator"
+      },
+      "multimeter": {
+        "title": "Multimeter basics + CAT ratings",
+        "description": "Modes, safety categories, and common mistakes that cost meters (or fingers)",
+        "intro": "A multimeter measures voltage, current, resistance, continuity, and diode drop. Pick the wrong mode and you'll blow a fuse (best case) or the meter (worst). Pick the wrong CAT rating and the meter can literally explode. Learn the modes and the safety class before you probe a live circuit.",
+        "modes": { "vac": "V AC", "vdc": "V DC", "a": "Amps", "ohm": "Ω", "diode": "Diode", "continuity": "Continuity" },
+        "explain": {
+          "vac":         "AC voltage — measures 230 V mains, 24 V AC control, etc. Highest scale first, then step down.",
+          "vdc":         "DC voltage — batteries, DC bench supplies, PV panels. Watch polarity for older analog meters.",
+          "a":           "Current — must be in SERIES with the circuit. Move the red probe to the 10 A jack. Common mistake: leaving probe in A jack and measuring V — shorts the source.",
+          "ohm":         "Resistance — power the circuit OFF first. Meter injects a tiny current and measures the voltage drop.",
+          "diode":       "Diode forward-drop — 0.6–0.7 V for silicon, 0.2–0.4 V for Schottky. Reverse shows 'OL' (open loop).",
+          "continuity":  "Beeps if resistance < ~50 Ω. Fastest way to trace a broken wire or check a fuse."
+        },
+        "catWarning": "CAT rating matters",
+        "catExplain": "CAT II = plug-in appliances, CAT III = distribution boards, CAT IV = service entrance. Use the wrong category near mains and the meter's fuse (or you) becomes the sacrificial part.",
+        "point1": "Red probe in the A jack + measuring voltage = short circuit. Always check the jack before you touch the probes",
+        "point2": "CAT rating scales with prospective fault energy — always use a CAT III/1000 V meter on distribution panels",
+        "point3": "Trust true-RMS meters on modern non-sinusoidal loads (LED, VFD, computers) — average-responding meters lie by 10–40 %"
+      },
       "reading_diagrams": {
         "title": "Reading a wiring diagram",
         "description": "Symbol conventions, line types, IEC vs ANSI — the alphabet of every diagram",
