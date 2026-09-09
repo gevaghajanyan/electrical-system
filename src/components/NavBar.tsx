@@ -16,8 +16,9 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: '/panels', labelKey: 'nav.panels' },
   { href: '/schemes', labelKey: 'nav.schemes' },
-  { href: '/tools', labelKey: 'nav.tools' },
   { href: '/calculators', labelKey: 'nav.calculators' },
+  { href: '/learn', labelKey: 'nav.learn' },
+  { href: '/tools', labelKey: 'nav.tools' },
   { href: '/settings', labelKey: 'nav.settings' },
   { href: '/about', labelKey: 'nav.about' },
 ]

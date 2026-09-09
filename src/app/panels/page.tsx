@@ -220,6 +220,128 @@ function NewPanelModal({ open, onClose }: { open: boolean; onClose: () => void }
   )
 }
 
+/**
+ * Always-visible starter-templates section. Collapsed by default when the user
+ * already has panels (they don't need it staring at them every time), expanded
+ * automatically when the list is empty.
+ */
+function StarterTemplates() {
+  const { t } = useTranslation()
+  const router = useRouter()
+  const { panels } = usePanelStore()
+  const [expanded, setExpanded] = useState(panels.length === 0)
+
+  function spawn(templateId: string) {
+    const tpl = PANEL_TEMPLATES.find((x) => x.id === templateId)
+    if (!tpl) return
+    const settings = panelStore.getState().settings
+    const base = createPanelFromTemplate(tpl, tpl.name, settings.defaultVoltage, settings.defaultFrequency)
+    const now = new Date().toISOString()
+    const panel = panelStore.importPanel({ ...base, createdAt: now, updatedAt: now })
+    router.push(`/panels/edit?id=${panel.id}`)
+  }
+
+  return (
+    <div className="mb-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center gap-3 px-5 py-4 text-left touch-manipulation"
+      >
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {t('panels.starter.title', { defaultValue: 'Apartment templates' })}
+          </p>
+          <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+            {t('panels.starter.subtitle', {
+              defaultValue: 'Ready-made 1–5 room boards with master switch, voltage relay, non-disc. line, dedicated stove/AC, per-group RCDs, bathroom(s) & cross module.',
+            })}
+          </p>
+        </div>
+        <span className="ml-auto rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+          {PANEL_TEMPLATES.length}
+        </span>
+        <svg
+          className={`h-4 w-4 text-zinc-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-zinc-100 p-5 pt-4 dark:border-zinc-800">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {PANEL_TEMPLATES.map((tpl) => {
+              const totalSlots = tpl.rails.reduce((s, r) => s + r.slotCount, 0)
+              // Count how many of each key element the template contains
+              const rcdCount = tpl.elements.filter((e) => e.typeId.startsWith('rcd_')).length
+              const mcbCount = tpl.elements.filter((e) => e.typeId.startsWith('mcb_')).length
+              const hasCross = tpl.elements.some((e) => e.typeId.startsWith('cross_'))
+              const hasRelay = tpl.elements.some((e) => e.typeId === 'voltage_relay')
+              return (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={() => spawn(tpl.id)}
+                  className="group flex flex-col rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:bg-white hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800/60 dark:hover:border-blue-500 dark:hover:bg-zinc-800 touch-manipulation min-h-[170px]"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="text-3xl">{tpl.icon}</div>
+                    <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-zinc-500 tabular-nums dark:bg-black/25 dark:text-zinc-400">
+                      {tpl.rails.length} rails
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    {tpl.name}
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {tpl.description}
+                  </p>
+
+                  {/* Content chips */}
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {hasRelay && <Chip color="violet" label="Voltage relay" />}
+                    <Chip color="blue"  label={`${rcdCount} RCD`} />
+                    <Chip color="amber" label={`${mcbCount} MCB`} />
+                    {hasCross && <Chip color="green" label="Cross" />}
+                  </div>
+
+                  <div className="mt-auto flex items-center justify-between gap-2 pt-3 text-[10px] text-zinc-400 dark:text-zinc-500">
+                    <span className="tabular-nums">{tpl.elements.length} modules · {totalSlots} slots</span>
+                    <svg className="h-3.5 w-3.5 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-500 dark:text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const CHIP_TONES: Record<string, string> = {
+  blue:   'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  amber:  'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+  green:  'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300',
+  violet: 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300',
+}
+function Chip({ color, label }: { color: string; label: string }) {
+  return (
+    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${CHIP_TONES[color] ?? CHIP_TONES.blue}`}>
+      {label}
+    </span>
+  )
+}
+
 export default function PanelsPage() {
   const { panels } = usePanelStore()
   const { t } = useTranslation()
@@ -307,37 +429,9 @@ export default function PanelsPage() {
           </div>
         </div>
 
-        {/* Sample projects */}
-        {panels.length === 0 && (
-          <div className="mb-5 rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900 p-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Sample Projects</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                { file: 'defance-home-32.json', name: 'Defance-home-32', desc: '3 bed · 2 bath · 4 rails' },
-                { file: 'defance-home-29.json', name: 'Defance-home-29', desc: '1 bed · 1 bath · 3 rails' },
-                { file: 'defance-home-30.json', name: 'Defance-home-30', desc: '1 bed · 1 bath · 3 rails' },
-              ].map(({ file, name, desc }) => (
-                <button
-                  key={file}
-                  className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 p-3 text-left hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                  onClick={async () => {
-                    try {
-                      const res = await fetch(`/samples/${file}`)
-                      const panel = await res.json() as Panel
-                      const imported = panelStore.importPanel(panel)
-                      router.push(`/panels/edit?id=${imported.id}`)
-                    } catch {
-                      alert('Failed to load sample.')
-                    }
-                  }}
-                >
-                  <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{name}</p>
-                  <p className="mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">{desc}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Starter apartment templates — always visible */}
+        <StarterTemplates />
+
 
         {panels.length > 0 && (
           <div className="mb-5 flex items-center gap-3">
