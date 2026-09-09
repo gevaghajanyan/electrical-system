@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Trash2, RotateCw, CheckCircle2, AlertCircle, Info,
@@ -104,6 +104,16 @@ export function BreadboardPlaygroundLesson() {
   const [placed, setPlaced] = useState<Placed[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const status = useMemo(() => validateCircuit(placed), [placed])
+  const svgRef = useRef<SVGSVGElement>(null)
+  // Drag-to-move state — tracks the pointer that started the drag so multi-touch
+  // pinches don't hijack a move-in-progress.
+  const dragRef = useRef<{
+    id: string
+    pointerId: number
+    grabOffsetCol: number
+    grabOffsetRow: number
+    moved: boolean
+  } | null>(null)
 
   function handleCellClick(col: number, row: number) {
     if (!armed) return
@@ -124,6 +134,136 @@ export function BreadboardPlaygroundLesson() {
     setPlaced([])
     setSelectedId(null)
   }
+  function nudge(dCol: number, dRow: number) {
+    if (!selectedId) return
+    setPlaced((prev) => prev.map((p) => {
+      if (p.id !== selectedId) return p
+      const nc = Math.max(0, Math.min(COLS - 1, p.col + dCol))
+      const nr = Math.max(0, Math.min(BOARD_ROWS - 1, p.row + dRow))
+      if (!isHoleValid(nr)) return p
+      // Refuse the move if it would land on another placed component.
+      if (prev.some((q) => q.id !== p.id && q.col === nc && q.row === nr)) return p
+      return { ...p, col: nc, row: nr }
+    }))
+  }
+
+  // ─── Pointer-based drag-to-move on placed components ──────────────────────
+  function svgPointToCell(clientX: number, clientY: number): { col: number; row: number } | null {
+    const svg = svgRef.current
+    if (!svg) return null
+    const rect = svg.getBoundingClientRect()
+    // The viewBox is 0..W × 0..H; scale mouse coords into that space.
+    const vbX = ((clientX - rect.left) / rect.width) * (COLS * CELL)
+    const vbY = ((clientY - rect.top)  / rect.height) * (BOARD_ROWS * CELL)
+    const col = Math.floor(vbX / CELL)
+    const row = Math.floor(vbY / CELL)
+    if (col < 0 || col >= COLS || row < 0 || row >= BOARD_ROWS) return null
+    return { col, row }
+  }
+
+  function handleCompPointerDown(e: React.PointerEvent, p: Placed) {
+    // Only left-mouse / touch / pen — right-click should not start a drag.
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    e.stopPropagation()
+    try { (e.currentTarget as Element).setPointerCapture(e.pointerId) } catch {}
+    dragRef.current = {
+      id: p.id,
+      pointerId: e.pointerId,
+      grabOffsetCol: 0,
+      grabOffsetRow: 0,
+      moved: false,
+    }
+    setSelectedId(p.id)
+  }
+
+  function handleCompPointerMove(e: React.PointerEvent) {
+    const d = dragRef.current
+    if (!d || d.pointerId !== e.pointerId) return
+    const cell = svgPointToCell(e.clientX, e.clientY)
+    if (!cell) return
+    setPlaced((prev) => {
+      const target = prev.find((p) => p.id === d.id)
+      if (!target) return prev
+      // Snap the *centre* of the component to the pointer's cell. For
+      // horizontal orientation the component spans col..col+4 (see rendering
+      // which uses `CELL * 2` half-width), so its "centre" is the drop point.
+      const newCol = Math.max(0, Math.min(COLS - 1, cell.col))
+      const newRow = Math.max(0, Math.min(BOARD_ROWS - 1, cell.row))
+      if (target.col === newCol && target.row === newRow) return prev
+      if (!isHoleValid(newRow)) return prev
+      // Don't overlap another component.
+      if (prev.some((q) => q.id !== d.id && q.col === newCol && q.row === newRow)) return prev
+      d.moved = true
+      return prev.map((q) => (q.id === d.id ? { ...q, col: newCol, row: newRow } : q))
+    })
+  }
+
+  function handleCompPointerUp(e: React.PointerEvent) {
+    if (dragRef.current?.pointerId === e.pointerId) {
+      try { (e.currentTarget as Element).releasePointerCapture(e.pointerId) } catch {}
+      dragRef.current = null
+    }
+  }
+
+  // ─── Global keyboard shortcuts ────────────────────────────────────────────
+  // Digits 1..5 arm the palette; R rotates the selected component; Delete /
+  // Backspace deletes it; Esc deselects; arrows nudge by one hole.
+  // Shift-Del clears all. Skipped while typing in an input.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+      // Palette arm (1..5)
+      const kindByDigit: Record<string, Kind> = {
+        '1': 'battery', '2': 'wire', '3': 'resistor', '4': 'capacitor', '5': 'led',
+      }
+      if (kindByDigit[e.key]) {
+        setArmed(kindByDigit[e.key])
+        return
+      }
+      // Palette arm (letter aliases): B/W/C/L don't clash with anything else.
+      const kindByLetter: Record<string, Kind> = {
+        b: 'battery', w: 'wire', c: 'capacitor', l: 'led',
+      }
+      const lower = e.key.toLowerCase()
+      if (!e.metaKey && !e.ctrlKey && kindByLetter[lower]) {
+        setArmed(kindByLetter[lower])
+        return
+      }
+      if (!e.metaKey && !e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
+        // R rotates the selected component; if nothing is selected, it becomes
+        // a shortcut to arm the resistor (no rotation would fire either way).
+        if (selectedId) rotate()
+        else setArmed('resistor')
+        return
+      }
+      if (e.key === 'Escape') {
+        setSelectedId(null)
+        setArmed(null)
+        return
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if ((e.shiftKey || e.metaKey || e.ctrlKey)) {
+          clear()
+          e.preventDefault()
+          return
+        }
+        if (selectedId) {
+          remove()
+          e.preventDefault()
+        }
+        return
+      }
+      if (e.key === 'ArrowUp')    { nudge(0, -1); e.preventDefault(); return }
+      if (e.key === 'ArrowDown')  { nudge(0,  1); e.preventDefault(); return }
+      if (e.key === 'ArrowLeft')  { nudge(-1, 0); e.preventDefault(); return }
+      if (e.key === 'ArrowRight') { nudge( 1, 0); e.preventDefault(); return }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId])
 
   const W = COLS * CELL
   const H = BOARD_ROWS * CELL
@@ -170,6 +310,7 @@ export function BreadboardPlaygroundLesson() {
           {/* Realistic breadboard */}
           <div className="overflow-x-auto rounded-2xl bg-gradient-to-b from-[#f8ecd4] to-[#f1dfaf] p-3 shadow-inner ring-1 ring-black/5 dark:from-[#e8cd8a] dark:to-[#c9945e]">
             <svg
+              ref={svgRef}
               viewBox={`0 0 ${W} ${H}`}
               className="mx-auto h-auto w-full max-w-3xl"
               onClick={() => setSelectedId(null)}
@@ -264,6 +405,9 @@ export function BreadboardPlaygroundLesson() {
                   key={p.id} placed={p}
                   selected={p.id === selectedId}
                   onSelect={() => setSelectedId(p.id)}
+                  onPointerDown={(e) => handleCompPointerDown(e, p)}
+                  onPointerMove={handleCompPointerMove}
+                  onPointerUp={handleCompPointerUp}
                 />
               ))}
             </svg>
@@ -304,6 +448,21 @@ export function BreadboardPlaygroundLesson() {
           <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
             {t('learn.lessons.breadboard.hint')}
           </p>
+
+          {/* Hotkey cheat-sheet */}
+          <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] text-zinc-500 dark:text-zinc-400">
+            <Kbd>1–5</Kbd><span>{t('learn.lessons.breadboard.hk.arm')}</span>
+            <span className="mx-1 text-zinc-300">·</span>
+            <Kbd>R</Kbd><span>{t('learn.lessons.breadboard.hk.rotate')}</span>
+            <span className="mx-1 text-zinc-300">·</span>
+            <Kbd>↑ ↓ ← →</Kbd><span>{t('learn.lessons.breadboard.hk.nudge')}</span>
+            <span className="mx-1 text-zinc-300">·</span>
+            <Kbd>Del</Kbd><span>{t('learn.lessons.breadboard.hk.delete')}</span>
+            <span className="mx-1 text-zinc-300">·</span>
+            <Kbd>Esc</Kbd><span>{t('learn.lessons.breadboard.hk.deselect')}</span>
+            <span className="mx-1 text-zinc-300">·</span>
+            <Kbd>⇧+Del</Kbd><span>{t('learn.lessons.breadboard.hk.clear')}</span>
+          </div>
         </Playground>
       </LessonCard>
 
@@ -367,6 +526,14 @@ function StatusBanner({ status, placed }: { status: Status; placed: Placed[] }) 
   )
 }
 
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="inline-flex items-center rounded border border-zinc-300 bg-zinc-50 px-1.5 py-[1px] font-mono text-[10px] font-semibold text-zinc-700 shadow-[0_1px_0_0_#e4e4e7] dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:shadow-[0_1px_0_0_#3f3f46]">
+      {children}
+    </kbd>
+  )
+}
+
 function CountChip({ icon: Icon, count, label }: { icon: LucideIcon; count: number; label: string }) {
   const { t } = useTranslation()
   return (
@@ -384,10 +551,14 @@ function CountChip({ icon: Icon, count, label }: { icon: LucideIcon; count: numb
 
 function BoardComponent({
   placed, selected, onSelect,
+  onPointerDown, onPointerMove, onPointerUp,
 }: {
   placed: Placed
   selected: boolean
   onSelect: () => void
+  onPointerDown?: (e: React.PointerEvent) => void
+  onPointerMove?: (e: React.PointerEvent) => void
+  onPointerUp?: (e: React.PointerEvent) => void
 }) {
   const cx = placed.col * CELL + CELL / 2
   const cy = placed.row * CELL + CELL / 2
@@ -396,8 +567,12 @@ function BoardComponent({
   return (
     <g
       transform={`rotate(${rot} ${cx} ${cy})`}
-      style={{ cursor: 'pointer' }}
+      style={{ cursor: 'grab', touchAction: 'none' }}
       onClick={(e) => { e.stopPropagation(); onSelect() }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
     >
       {selected && (
         <rect

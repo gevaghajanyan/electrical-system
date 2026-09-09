@@ -898,12 +898,20 @@
       "breadboard": {
         "title": "Build your own circuit",
         "description": "Drag components onto a virtual breadboard — no wiring soldering, just play",
-        "intro": "A breadboard is a plastic grid full of tiny holes wired together in a fixed pattern. It lets you build a working circuit in minutes without soldering. Below is a simplified version — tap a component, then tap a hole to place it.",
+        "intro": "A breadboard is a plastic grid full of tiny holes wired together in a fixed pattern. It lets you build a working circuit in minutes without soldering. Below is a simplified version — tap a component, then tap a hole to place it. Drag placed components to move them, or use the arrow keys after selecting.",
         "palette": "Add",
         "rotate": "Rotate",
         "delete": "Delete",
         "clear": "Clear all",
-        "hint": "Red rail = +, blue rail = −. Tap a component to select it, then rotate or delete.",
+        "hint": "Red rail = +, blue rail = −. Drag a placed component to move it. Tap once to select, then rotate/delete/nudge.",
+        "hk": {
+          "arm": "Arm a component",
+          "rotate": "Rotate selected",
+          "nudge": "Move selected 1 hole",
+          "delete": "Delete selected",
+          "deselect": "Deselect / disarm",
+          "clear": "Clear all"
+        },
         "items": {
           "battery":   "Battery",
           "wire":      "Wire",

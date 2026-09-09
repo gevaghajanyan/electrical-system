@@ -171,7 +171,6 @@ function buildApartment(spec: Spec): PanelTemplate {
   const { rooms } = spec
   const hasHallway = rooms >= 2
   const bathrooms = rooms >= 4 ? 2 : 1
-  const useCross = rooms >= 3
 
   // Reset the per-rail cursors so successive builds are deterministic.
   cursors[0] = 0
@@ -191,12 +190,20 @@ function buildApartment(spec: Spec): PanelTemplate {
     wires.push({ fromIndex: rcdIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: downstreamMcbIdx, toSide: 'top', toPhase: 'L1', label })
   }
 
-  // ─── Rail 0: INPUT (main switch, relay, dedicated & non-disc. lines) ───
+  // ─── Rail 0: INPUT (main switch → relay → cross → dedicated/non-disc lines) ───
   const masterIdx = push(masterSwitch(0, rooms >= 4 ? 80 : 63))
   const relayIdx  = push(voltageRelay(0))
   // Master ── (L1, N) → Voltage relay (the full 2-pole feed)
   wires.push({ fromIndex: masterIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: relayIdx, toSide: 'top', toPhase: 'L1', label: 'L1' })
   wires.push({ fromIndex: masterIdx, fromSide: 'bottom', fromPhase: 'N',  toIndex: relayIdx, toSide: 'top', toPhase: 'N',  label: 'N' })
+
+  // Cross module — L/N distribution block right after the voltage relay. Every
+  // downstream rail-0 MCB and every RCD (rail 1 / 2) is fed off the cross's
+  // bottom L1 / N terminals so the distribution is physically wired the way a
+  // real DIN cabinet is: one comb-busbar entry, many tap-offs.
+  const crossIdx = push(cross(0))
+  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: crossIdx, toSide: 'top', toPhase: 'L1', label: 'L1' })
+  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'N',  toIndex: crossIdx, toSide: 'top', toPhase: 'N',  label: 'N' })
 
   // Non-disconnectable — permanent MCB for essentials (bypasses group RCDs).
   const essentialIdx = push({
@@ -209,7 +216,7 @@ function buildApartment(spec: Spec): PanelTemplate {
     circuitTag: 'Essential',
     properties: { kind: 'mcb', rating: 16, curve: 'C', breakingCapacity: 6 },
   })
-  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: essentialIdx, toSide: 'top', toPhase: 'L1', label: 'Essential' })
+  wires.push({ fromIndex: crossIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: essentialIdx, toSide: 'top', toPhase: 'L1', label: 'Essential' })
 
   // Dedicated kitchen stove — 32A / 6mm²
   const stoveIdx = push({
@@ -222,7 +229,7 @@ function buildApartment(spec: Spec): PanelTemplate {
     circuitTag: 'Kitchen',
     properties: { kind: 'mcb', rating: 32, curve: 'C', breakingCapacity: 6 },
   })
-  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: stoveIdx, toSide: 'top', toPhase: 'L1', label: 'Stove' })
+  wires.push({ fromIndex: crossIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: stoveIdx, toSide: 'top', toPhase: 'L1', label: 'Stove' })
 
   // Dedicated air-conditioner — 16A / 4mm²
   const acIdx = push({
@@ -235,7 +242,7 @@ function buildApartment(spec: Spec): PanelTemplate {
     circuitTag: 'HVAC',
     properties: { kind: 'mcb', rating: 16, curve: 'C', breakingCapacity: 6 },
   })
-  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: acIdx, toSide: 'top', toPhase: 'L1', label: 'A/C' })
+  wires.push({ fromIndex: crossIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: acIdx, toSide: 'top', toPhase: 'L1', label: 'A/C' })
 
   // 4+ rooms → second air-conditioner
   if (rooms >= 4) {
@@ -249,18 +256,22 @@ function buildApartment(spec: Spec): PanelTemplate {
       circuitTag: 'HVAC',
       properties: { kind: 'mcb', rating: 16, curve: 'C', breakingCapacity: 6 },
     })
-    wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: ac2Idx, toSide: 'top', toPhase: 'L1', label: 'A/C 2' })
+    wires.push({ fromIndex: crossIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: ac2Idx, toSide: 'top', toPhase: 'L1', label: 'A/C 2' })
   }
 
   // Neutral bar caps the input rail (pole-0, no port wiring — reference only)
   push(neutralBar(0))
 
+  // Feed every RCD from the cross's bottom L1 / N terminals.
+  function feedRcdFromCross(rcdIdx: number, label: string) {
+    wires.push({ fromIndex: crossIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: rcdIdx, toSide: 'top', toPhase: 'L1', label: `${label} L` })
+    wires.push({ fromIndex: crossIdx, fromSide: 'bottom', fromPhase: 'N',  toIndex: rcdIdx, toSide: 'top', toPhase: 'N',  label: `${label} N` })
+  }
+
   // ─── Rail 1: ROOM & KITCHEN GROUPS ───
   const firstGroupSize = Math.min(rooms, 2)
   const rcdRoomsIdx = push(rcd(1, 40, 30, `RCD Rooms 1–${firstGroupSize}`))
-  // Feed RCD from voltage relay (cross-rail)
-  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: rcdRoomsIdx, toSide: 'top', toPhase: 'L1', label: 'L1' })
-  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'N',  toIndex: rcdRoomsIdx, toSide: 'top', toPhase: 'N',  label: 'N' })
+  feedRcdFromCross(rcdRoomsIdx, `R1–${firstGroupSize}`)
   for (let r = 1; r <= firstGroupSize; r++) {
     const socketsIdx = push(mcb(1, 16, `Room ${r} sockets`, 'C', `Room ${r}`))
     const lightsIdx  = push(mcb(1, 10, `Room ${r} lights`,  'B', `Room ${r}`))
@@ -274,8 +285,7 @@ function buildApartment(spec: Spec): PanelTemplate {
 
   if (rooms >= 3) {
     const rcdRooms2Idx = push(rcd(1, 40, 30, `RCD Rooms 3–${rooms}`))
-    wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: rcdRooms2Idx, toSide: 'top', toPhase: 'L1', label: 'L1' })
-    wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'N',  toIndex: rcdRooms2Idx, toSide: 'top', toPhase: 'N',  label: 'N' })
+    feedRcdFromCross(rcdRooms2Idx, `R3–${rooms}`)
     for (let r = 3; r <= rooms; r++) {
       const socketsIdx = push(mcb(1, 16, `Room ${r} sockets`, 'C', `Room ${r}`))
       const lightsIdx  = push(mcb(1, 10, `Room ${r} lights`,  'B', `Room ${r}`))
@@ -286,26 +296,21 @@ function buildApartment(spec: Spec): PanelTemplate {
 
   // Kitchen — its own RCD (dishwasher / dish drier are wet-area appliances)
   const rcdKitchenIdx = push(rcd(1, 40, 30, 'RCD Kitchen'))
-  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: rcdKitchenIdx, toSide: 'top', toPhase: 'L1', label: 'L1' })
-  wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'N',  toIndex: rcdKitchenIdx, toSide: 'top', toPhase: 'N',  label: 'N' })
+  feedRcdFromCross(rcdKitchenIdx, 'Kitchen')
   const kSocketsIdx = push(mcb(1, 16, 'Kitchen sockets', 'C', 'Kitchen'))
   const kLightsIdx  = push(mcb(1, 10, 'Kitchen lights',  'B', 'Kitchen'))
   feedFromRcd(rcdKitchenIdx, kSocketsIdx, 'K sockets')
   feedFromRcd(rcdKitchenIdx, kLightsIdx,  'K lights')
 
-  // ─── Rail 2: BATH & CROSS ───
+  // ─── Rail 2: BATHROOMS ───
   for (let b = 1; b <= bathrooms; b++) {
     const suffix = bathrooms > 1 ? ` ${b}` : ''
     const rcdBathIdx = push(rcd(2, 40, 10, `RCD Bath${suffix}`))
-    wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'L1', toIndex: rcdBathIdx, toSide: 'top', toPhase: 'L1', label: 'L1' })
-    wires.push({ fromIndex: relayIdx, fromSide: 'bottom', fromPhase: 'N',  toIndex: rcdBathIdx, toSide: 'top', toPhase: 'N',  label: 'N' })
+    feedRcdFromCross(rcdBathIdx, `Bath${suffix}`)
     const bathSocketsIdx = push(mcb(2, 16, `Bath${suffix} sockets`, 'C', `Bath${suffix}`))
     const bathLightsIdx  = push(mcb(2, 10, `Bath${suffix} lights`,  'B', `Bath${suffix}`))
     feedFromRcd(rcdBathIdx, bathSocketsIdx, `B${suffix} sockets`)
     feedFromRcd(rcdBathIdx, bathLightsIdx,  `B${suffix} lights`)
-  }
-  if (useCross) {
-    push(cross(2))
   }
 
   // Real DIN cabinets ship with all rails the same width. Size every rail to
@@ -320,7 +325,7 @@ function buildApartment(spec: Spec): PanelTemplate {
   ]
   if (cursors[2] > 0) {
     rails.push({
-      label: bathrooms > 1 ? 'Bath & Cross' : 'Bath',
+      label: bathrooms > 1 ? 'Bathrooms' : 'Bath',
       slotCount: uniformSize,
     })
   }
