@@ -114,21 +114,34 @@
     }
   },
   "about": {
-    "title": "Electrical Panel Designer",
-    "subtitle": "A browser-based tool for designing DIN rail electrical distribution boards",
+    "title": "Voltra — Electrical Panel Designer",
+    "subtitle": "Design DIN rail electrical distribution boards and wiring schemes. Works offline, runs in your browser.",
     "features": {
       "title": "Features",
       "items": [
-        "Visual DIN rail panel layout editor",
-        "Drag-and-drop element placement from a component palette",
-        "MCBs, RCDs, RCBOs, isolators, surge protection, and more",
-        "Multi-rail panels with configurable slot counts",
-        "Element property editing (rating, curve, label)",
-        "Design validation with error and warning reporting",
-        "Export to PDF (print) and JSON",
-        "Import panels from JSON files",
-        "Electrical calculators (cable sizing, voltage drop, fault current)",
-        "All data stored locally — no account required"
+        "Visual DIN rail panel editor with multi-rail layouts and configurable slot counts",
+        "Drag-and-drop palette of MCBs, RCDs, RCBOs, isolators, contactors, timers, SPDs, meters, sockets, lamps and more",
+        "Typed properties per device (rating, curve, sensitivity, poles, coil voltage, MID class, SPD type…)",
+        "Port-to-port wiring with a connection matrix and schematic view",
+        "Circuit tags, phase assignment (L1/L2/L3), labels, notes, and input cables",
+        "Undo / redo history (50 steps), snapshots, copy / paste, auto-numbering, auto-pack rails",
+        "Wiring schemes editor: switches, lamps, LEDs, sockets, transformers, motors, junctions with rotation",
+        "20+ electrical calculators (Ohm's law, cable sizing, voltage drop, fault current, motor FLC, PFC, and more)",
+        "Learning lessons on electricity fundamentals, three-phase, selectivity, harmonics, and more",
+        "Bill-of-materials, PDF, SVG, JSON export and QR-code sharing"
+      ]
+    },
+    "offline": {
+      "title": "Offline & Installable",
+      "description": "Voltra is a Progressive Web App. Install it from your browser and it will keep working without a network connection — the app shell is precached by a service worker and all your data lives in the browser."
+    },
+    "privacy": {
+      "title": "Your data",
+      "items": [
+        "Panels and schemes are stored in your browser's localStorage — nothing is uploaded",
+        "No accounts, no sign-in, no analytics",
+        "Import / export at any time via JSON files",
+        "Clearing your browser data will remove your panels — export a backup first"
       ]
     },
     "standards": {
@@ -136,22 +149,31 @@
       "description": "Designed for use with BS 7671 (IET Wiring Regulations) and IEC 60364. Slot widths follow the 18mm DIN rail module convention."
     },
     "shortcuts": {
-      "title": "Keyboard Shortcuts",
-      "deleteKey": "Delete / ⌫",
-      "deleteDesc": "Delete selected element (focus canvas first)",
-      "scroll": "Scroll",
-      "scrollDesc": "Pan canvas",
-      "cmdScroll": "⌘ Scroll",
-      "cmdScrollDesc": "Zoom canvas",
-      "middleDrag": "Middle drag",
-      "middleDragDesc": "Pan canvas"
+      "title": "Keyboard shortcuts",
+      "items": [
+        { "keys": "Delete / ⌫",     "desc": "Delete the selected element (focus the canvas first)" },
+        { "keys": "⌘ / Ctrl + Z",  "desc": "Undo" },
+        { "keys": "⇧ ⌘ / Ctrl + Z", "desc": "Redo" },
+        { "keys": "⌘ / Ctrl + C",  "desc": "Copy the selected element" },
+        { "keys": "⌘ / Ctrl + V",  "desc": "Paste into the first free slot" },
+        { "keys": "Scroll",         "desc": "Pan the canvas" },
+        { "keys": "⌘ / Ctrl Scroll","desc": "Zoom the canvas" },
+        { "keys": "Middle drag",    "desc": "Pan the canvas" },
+        { "keys": "Pinch",          "desc": "Zoom on touch devices" }
+      ]
     },
     "technology": {
       "title": "Technology",
-      "description": "Built with Next.js 16, React 19, TypeScript, and Tailwind CSS v4. Canvas rendering uses the HTML5 Canvas API. State persisted via localStorage."
+      "description": "Built with Next.js 16 (static export), React 19, TypeScript and Tailwind CSS v4. Canvas rendering uses Konva. State is persisted to localStorage. Deployed as a fully static site to GitHub Pages."
     },
-    "getStarted": "Get started",
-    "calculators": "Calculators"
+    "languages": {
+      "title": "Languages",
+      "description": "Available in English, Russian and Armenian. Missing translations fall back to English key-by-key."
+    },
+    "getStarted": "Open panels",
+    "schemes": "Schemes",
+    "calculators": "Calculators",
+    "learn": "Learn"
   },
   "calc": {
     "pageTitle": "Electrical calculators",

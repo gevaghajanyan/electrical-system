@@ -38,7 +38,7 @@ export function BatteriesLesson() {
                 key={c}
                 type="button"
                 onClick={() => setConfig(c)}
-                className={`min-h-[40px] rounded-md px-2 py-1.5 text-sm font-medium transition-colors touch-manipulation ${
+                className={`min-h-[40px] rounded-md px-1 py-1.5 text-[11px] font-medium leading-tight transition-colors touch-manipulation sm:px-2 sm:text-sm ${
                   config === c
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'

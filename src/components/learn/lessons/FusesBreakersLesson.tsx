@@ -57,13 +57,13 @@ export function FusesBreakersLesson() {
               <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 {t('learn.lessons.fuses.rating')}
               </label>
-              <div className="flex gap-1.5">
+              <div className="grid grid-cols-5 gap-1 sm:gap-1.5">
                 {([10, 16, 20, 25, 32] as const).map((r) => (
                   <button
                     key={r}
                     type="button"
                     onClick={() => setRating(r)}
-                    className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors touch-manipulation min-h-[36px] ${
+                    className={`rounded-md px-1 py-1.5 text-xs font-semibold tabular-nums transition-colors touch-manipulation min-h-[40px] ${
                       rating === r
                         ? 'bg-zinc-900 text-white shadow-sm dark:bg-zinc-100 dark:text-zinc-900'
                         : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'

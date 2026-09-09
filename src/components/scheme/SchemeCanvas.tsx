@@ -67,10 +67,12 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState<{
     nodeId: string
+    pointerId: number
     startClientX: number
     startClientY: number
     origX: number
     origY: number
+    moved: boolean
   } | null>(null)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [panning, setPanning] = useState<{
@@ -78,6 +80,9 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
     startY: number
     origPan: { x: number; y: number }
   } | null>(null)
+  // Track every active pointer so we can bail out of a single-finger node drag
+  // the moment a second finger lands (letting the pinch/pan gesture take over).
+  const activePointers = useRef<Set<number>>(new Set())
 
   function toCanvas(clientX: number, clientY: number): { x: number; y: number } {
     const rect = svgRef.current?.getBoundingClientRect()
@@ -151,15 +156,34 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
     },
   })
 
-  // ── Mouse events ──────────────────────────────────────────────────────────
+  // ── Pointer events (unified mouse / touch / pen) ──────────────────────────
 
-  function handleMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+  function handlePointerDown(e: React.PointerEvent<SVGSVGElement>) {
+    activePointers.current.add(e.pointerId)
+
+    // Two or more pointers = pinch/pan gesture — abandon any in-flight node drag.
+    if (activePointers.current.size > 1 && dragging) {
+      setDragging(null)
+    }
+
+    // Middle-mouse button starts canvas panning (touch panning goes through
+    // useCanvasTouchGestures — two fingers).
+    if (e.pointerType === 'mouse' && e.button === 1) {
+      e.preventDefault()
+      setPanning({ startX: e.clientX, startY: e.clientY, origPan: { ...pan } })
+    }
+  }
+
+  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
     const pos = toCanvas(e.clientX, e.clientY)
     setMousePos(pos)
 
-    if (dragging) {
+    if (dragging && dragging.pointerId === e.pointerId) {
       const dx = (e.clientX - dragging.startClientX) / zoom
       const dy = (e.clientY - dragging.startClientY) / zoom
+      if (!dragging.moved && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
+        setDragging({ ...dragging, moved: true })
+      }
       schemeStore.updateNode(dragging.nodeId, {
         x: snap(dragging.origX + dx),
         y: snap(dragging.origY + dy),
@@ -174,21 +198,22 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
     }
   }
 
-  function handleMouseUp() {
-    setDragging(null)
+  function handlePointerUp(e: React.PointerEvent<SVGSVGElement>) {
+    activePointers.current.delete(e.pointerId)
+    if (dragging && dragging.pointerId === e.pointerId) setDragging(null)
     setPanning(null)
   }
 
-  function handleMouseLeave() {
-    setDragging(null)
+  function handlePointerCancel(e: React.PointerEvent<SVGSVGElement>) {
+    activePointers.current.delete(e.pointerId)
+    if (dragging && dragging.pointerId === e.pointerId) setDragging(null)
     setPanning(null)
   }
 
-  function handleMouseDown(e: React.MouseEvent<SVGSVGElement>) {
-    if (e.button === 1) {
-      e.preventDefault()
-      setPanning({ startX: e.clientX, startY: e.clientY, origPan: { ...pan } })
-    }
+  function handlePointerLeave() {
+    // A pointer leaving the SVG while captured still fires move/up on the
+    // capturing element; only reset transient panning state here.
+    setPanning(null)
   }
 
   function handleSvgClick(e: React.MouseEvent<SVGSVGElement>) {
@@ -216,16 +241,59 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
 
   // ── Node drag ─────────────────────────────────────────────────────────────
 
-  function handleNodeMouseDown(e: React.MouseEvent, node: SchemeNode) {
-    if (e.button !== 0) return
+  function handleNodePointerDown(e: React.PointerEvent, node: SchemeNode) {
+    // Left mouse (button === 0), touch and pen all report button === 0.
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    // If another pointer is already down (two-finger gesture starting), don't
+    // hijack it for a node drag.
+    if (activePointers.current.size > 0 && !activePointers.current.has(e.pointerId)) return
     e.stopPropagation()
+    // Capture so move/up still fire on this element even if the finger slides
+    // beyond the node bounds.
+    try {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId)
+    } catch {
+      // Older browsers may throw — the SVG-level handlers still track the drag.
+    }
+    activePointers.current.add(e.pointerId)
     setDragging({
       nodeId: node.id,
+      pointerId: e.pointerId,
       startClientX: e.clientX,
       startClientY: e.clientY,
       origX: node.x,
       origY: node.y,
+      moved: false,
     })
+    if (!connectingFrom) schemeStore.selectNode(node.id)
+  }
+
+  function handleNodePointerMove(e: React.PointerEvent) {
+    if (!dragging || dragging.pointerId !== e.pointerId) return
+    if (activePointers.current.size > 1) {
+      // A second pointer arrived mid-drag — hand off to pinch/pan.
+      setDragging(null)
+      return
+    }
+    const dx = (e.clientX - dragging.startClientX) / zoom
+    const dy = (e.clientY - dragging.startClientY) / zoom
+    if (!dragging.moved && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
+      setDragging({ ...dragging, moved: true })
+    }
+    schemeStore.updateNode(dragging.nodeId, {
+      x: snap(dragging.origX + dx),
+      y: snap(dragging.origY + dy),
+    })
+  }
+
+  function handleNodePointerUp(e: React.PointerEvent) {
+    if (dragging && dragging.pointerId === e.pointerId) setDragging(null)
+    activePointers.current.delete(e.pointerId)
+    try {
+      (e.currentTarget as Element).releasePointerCapture(e.pointerId)
+    } catch {
+      // ignore — pointer capture may already be released
+    }
   }
 
   function handleNodeClick(e: React.MouseEvent, node: SchemeNode) {
@@ -234,6 +302,9 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
       // In connect mode, clicking a node body does nothing (use port dots)
       return
     }
+    // On drag-release the browser may synthesise a click; skip re-selecting
+    // if we actually moved the node.
+    if (dragging?.moved) return
     schemeStore.selectNode(node.id)
   }
 
@@ -334,8 +405,11 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
     return (
       <g
         key={node.id}
-        style={{ cursor: dragging?.nodeId === node.id ? 'grabbing' : 'grab' }}
-        onMouseDown={(e) => handleNodeMouseDown(e, node)}
+        style={{ cursor: dragging?.nodeId === node.id ? 'grabbing' : 'grab', touchAction: 'none' }}
+        onPointerDown={(e) => handleNodePointerDown(e, node)}
+        onPointerMove={handleNodePointerMove}
+        onPointerUp={handleNodePointerUp}
+        onPointerCancel={handleNodePointerUp}
         onClick={(e) => handleNodeClick(e, node)}
       >
         {/* Rotated group containing shape + symbol + selection */}
@@ -506,10 +580,11 @@ export function SchemeCanvas({ scheme, zoom, onZoomChange, wireRouting = 'orthog
       ref={svgRef}
       className="h-full w-full select-none touch-none bg-zinc-50 dark:bg-zinc-950"
       onWheel={handleWheel}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
-      onMouseDown={handleMouseDown}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onPointerLeave={handlePointerLeave}
       onClick={handleSvgClick}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
